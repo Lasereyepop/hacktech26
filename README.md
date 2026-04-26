@@ -1,4 +1,4 @@
-# lahacks2026 — Taste Lab
+# techhacks — Taste Lab
 
 Taste Lab is a design-intelligence product that pairs a Figma-style design
 canvas with a self-trained **gaze-prediction model**. Drop a design on the
