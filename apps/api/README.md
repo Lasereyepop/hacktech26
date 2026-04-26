@@ -28,7 +28,7 @@ PYTHON=/opt/anaconda3/envs/hacktech26/bin/python ./apps/api/run_dev.sh
 You should see something like:
 
 ```
-[gaze-api] repo:      /Users/.../lahacks2026
+[gaze-api] repo:      /Users/.../hacktech26
 [gaze-api] python:    /opt/anaconda3/envs/hacktech26/bin/python (Python 3.11.x)
 [gaze-api] checkpoint:model/checkpoints/gaze_epoch250.pt
 [gaze-api] device:    auto

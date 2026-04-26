@@ -202,7 +202,7 @@ batch jobs and notebooks.
 
 ```bash
 # Run from the repo root so `model.*` imports resolve
-cd /path/to/lahacks2026
+cd /path/to/hacktech26
 conda activate hacktech26    # or activate your venv
 
 # Scanpath (recommended) — popup display

@@ -1,5 +1,5 @@
 {
-  "name": "lahacks2026",
+  "name": "hacktech26",
   "version": "0.1.0",
   "private": true,
   "description": "Monorepo for the Taste Lab design intelligence product.",
@@ -7,9 +7,9 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "npm --workspace @lahacks2026/web run dev",
-    "build": "npm --workspace @lahacks2026/web run build",
-    "lint": "npm --workspace @lahacks2026/web run lint"
+    "dev": "npm --workspace @hacktech26/web run dev",
+    "build": "npm --workspace @hacktech26/web run build",
+    "lint": "npm --workspace @hacktech26/web run lint"
   },
   "dependencies": {
     "sharp": "^0.34.5"
