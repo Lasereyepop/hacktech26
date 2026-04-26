@@ -1,49 +1,64 @@
-# techhacks — Taste Lab
+# hacktech26 — SkyNet, Taste Lab, and IronSite Spatial Intelligence
 
-Taste Lab is a design-intelligence product that pairs a Figma-style design
-canvas with a self-trained **gaze-prediction model**. Drop a design on the
-canvas, click *Predict gaze*, and see a heatmap + ordered fixation pins
-showing where a real viewer would actually look.
+This repo contains a shared foundation model for **human attention tracking
+and simulation** — **SkyNet** — and two product applications built on top of
+it:
+
+- **Taste Lab**: a design-intelligence workspace for simulating how people
+  visually explore product, UI, and marketing designs.
+- **IronSite Spatial Intelligence**: a construction analytics experience that
+  turns predicted worker attention into activity, engagement, and productivity
+  signals.
+
+At the core, SkyNet predicts where a human is likely to look next, producing
+saliency heatmaps, ordered gaze traces, and fixation sequences. Taste Lab uses
+that to evaluate digital designs; IronSite uses the same signal to understand
+real-world worker behavior in space.
 
 ```
-┌──────────────────────────┐  capture artboard PNG    ┌────────────────┐
-│  Next.js dashboard       │ ───────────────────────► │  Next.js proxy │
-│  apps/web                │                          │  /api/gaze/*   │
-│                          │ ◄─── heatmap + pins ───┐ └───────┬────────┘
-└──────────────────────────┘                        │         │
-                                                    │         ▼
-                                                    │  ┌─────────────────┐
-                                                    └──┤  FastAPI gaze   │
-                                                       │  apps/api       │
-                                                       │  (PyTorch)      │
-                                                       └────────┬────────┘
-                                                                │
-                                                                ▼
-                                                       model/checkpoints/
-                                                       gaze_epoch250.pt
+┌──────────────────────────┐  images / frames / videos ┌────────────────┐
+│  Taste Lab (apps/web)    │ ─────────────────────────► │  Next.js proxy │
+│  design intelligence UI  │                           │  /api/gaze/*   │
+└──────────────────────────┘ ◄── heatmaps + fixations ┐└───────┬────────┘
+                                                      │        │
+┌──────────────────────────┐                          │        ▼
+│  IronSite (ironsite/)    │ ─────────────────────────┘ ┌─────────────────┐
+│  spatial intelligence    │                            │  FastAPI gaze   │
+│  demos + analytics       │                            │  apps/api       │
+└──────────────────────────┘                            │  (PyTorch)      │
+                                                        └────────┬────────┘
+                                                                 │
+                                                                 ▼
+                                                        model/checkpoints/
+                                                        gaze_epoch250.pt
+                                                        (SkyNet weights)
 ```
 
-This README is the **single source of truth for running the model**. There
-are three ways to do that — pick whichever fits your task.
+This README is the main entry point for understanding and running the shared
+model stack, the Taste Lab app, and the IronSite demo surfaces.
 
 ---
 
 ## TL;DR
 
 ```bash
-# 1) Python deps for the model + API (one time)
+# 1) Python deps for the SkyNet model + API (one time)
 /opt/anaconda3/envs/hacktech26/bin/pip install -r apps/api/requirements.txt
 
-# 2) Start the gaze API (loads model once, ~1–2 s on CPU)
+# 2) Start the gaze API (loads SkyNet once, ~1–2 s on CPU)
 PYTHON=/opt/anaconda3/envs/hacktech26/bin/python ./apps/api/run_dev.sh
 #   → http://127.0.0.1:8000   |   docs at /docs
 
-# 3) Start the web app (in another shell)
+# 3) Start Taste Lab (in another shell)
 cd apps/web && npm install && npm run dev
 #   → http://localhost:3000
 
-# 4) On the dashboard, open a project, scroll the right inspector to
-#    "Gaze prediction", click "Predict gaze".
+# 4) Optional: start the IronSite demo (in another shell)
+cd ironsite && python3 -m http.server 8080
+#   → http://localhost:8080
+
+# 5) Taste Lab: open a project and click "Predict gaze"
+#    IronSite: open the camera grid or 3D site view
 ```
 
 That's it. The rest of this doc is reference material.
@@ -58,6 +73,42 @@ That's it. The rest of this doc is reference material.
 | PyTorch      | ≥ 2.1                  | CPU is fine; CUDA / Apple MPS auto-detected |
 | Node.js      | ≥ 18                   | For the Next.js dashboard                   |
 | `npm`        | ≥ 9                    | npm workspaces                              |
+
+---
+
+## Product overview
+
+### SkyNet — the shared base model
+
+SkyNet is the shared attention foundation model in this repo. It predicts:
+
+- saliency heatmaps
+- ordered scanpaths / gaze sequences
+- fixations with dwell estimates
+
+Those outputs are the common primitive used by both products.
+
+### Taste Lab — design intelligence
+
+Taste Lab is the product-facing design application. It pairs a Figma-style
+canvas with SkyNet so teams can simulate user attention on designs before
+shipping.
+
+### IronSite Spatial Intelligence — construction analytics
+
+IronSite applies the same attention model to construction workflows. Instead
+of asking *what will a user notice in this interface?*, it asks *what is a
+worker attending to, and what does that imply about task state?*
+
+From predicted attention patterns, the IronSite surfaces derive:
+
+- activity classification from gaze speed
+- engagement and focus from center bias
+- work-cycle counting from repeating attention loops
+- productivity and task-complexity signals from temporal gaze structure
+
+See [`ironsite/README.md`](ironsite/README.md) for the construction-specific
+demo and findings.
 
 **The trained checkpoint** ships in this repo at:
 
@@ -93,8 +144,8 @@ npm install --workspaces        # from the repo root
 
 ## Way 1 — From the dashboard (recommended)
 
-This is the user-facing path: rasterize whatever's on your artboard and run
-the model on it.
+This is the user-facing Taste Lab path: rasterize whatever's on your artboard
+and run SkyNet on it.
 
 1. Make sure both servers are running:
    - `./apps/api/run_dev.sh` → FastAPI on `:8000`
@@ -123,6 +174,29 @@ the model on it.
 > `html-to-image`, posts the PNG to `/api/gaze/scanpath` (a Next.js proxy),
 > which forwards to the FastAPI backend. See
 > [`apps/web/README.md`](apps/web/README.md) for the implementation map.
+
+---
+
+## Way 1B — Run the IronSite demo
+
+IronSite is a static presentation and analytics surface built around outputs
+from the same base model.
+
+```bash
+cd ironsite
+python3 -m http.server 8080
+# Open http://localhost:8080
+```
+
+Pages:
+
+- `index.html` — multi-camera operations view with analytics overlay
+- `site.html` — interactive 3D site view with worker markers
+- `analytics.html` — supporting analytics views
+- `research.html` — project narrative and findings
+
+Use this path when you want to explore the construction / spatial
+intelligence application rather than the Taste Lab design workflow.
 
 ---
 
@@ -197,8 +271,8 @@ const data = await res.json();
 ## Way 3 — From Python / CLI (offline, no server)
 
 If you don't want to run the FastAPI process at all, use `model.inference`
-directly. This is the path the API uses internally; it's also handy for
-batch jobs and notebooks.
+directly. This is the path the API uses internally; it's also handy for batch
+jobs, notebooks, and IronSite analysis workflows.
 
 ```bash
 # Run from the repo root so `model.*` imports resolve
@@ -371,11 +445,12 @@ artboard size to closer to 16:9) or use the smaller `n_frames` / increase
 
 ```
 apps/
-  web/    Next.js 16 + React 19 dashboard (the UI you click)
-  api/    FastAPI gaze service (HTTP wrapper around model.inference)
+  web/    Next.js 16 + React 19 Taste Lab dashboard
+  api/    FastAPI SkyNet inference service (HTTP wrapper around model.inference)
+ironsite/ static IronSite Spatial Intelligence demo and research surfaces
 model/
-  arch/         GazePredictor = UNet (ResNet-50 backbone) + transformer decoder
-  checkpoints/  gaze_epoch250.pt   ← the trained weights we ship
+  arch/         SkyNet predictor = UNet (ResNet-50 backbone) + transformer decoder
+  checkpoints/  gaze_epoch250.pt   ← the trained SkyNet weights we ship
   inference.py  CLI + library entry points (run_scanpath_gen, run_heatmap, …)
   utils/        scanpath_gen.py (waypoint + spline scanpath), postprocess.py
 data/           Calibration + collection pipeline (only needed if retraining)
@@ -388,5 +463,6 @@ npm run dev                          # web app dev server
 npm run build                        # production build
 npm run lint                         # tsc --noEmit
 ./apps/api/run_dev.sh                # gaze API dev server
+cd ironsite && python3 -m http.server 8080   # IronSite demo server
 python -m model.inference --help     # full CLI flags
 ```
