@@ -1,0 +1,13 @@
+{
+  "total_time_s": 89.86666666666666,
+  "total_cycles": 17,
+  "avg_cycle_duration": 5.27843137254902,
+  "median_cycle_duration": 2.133333333333333,
+  "std_cycle_duration": 5.637235464587121,
+  "avg_gaze_speed": 0.2041221016391855,
+  "avg_center_bias": 0.3101452075416078,
+  "speed_range": [
+    0.0,
+    1.148397910778138
+  ]
+}

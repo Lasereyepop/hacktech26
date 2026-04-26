@@ -1,0 +1,13 @@
+fastapi>=0.110
+uvicorn[standard]>=0.27
+python-multipart>=0.0.9
+
+# Model deps (already declared in repo-root requirements.txt; pinned loosely here
+# so `pip install -r apps/api/requirements.txt` works on its own).
+torch>=2.1
+torchvision>=0.16
+numpy
+opencv-python
+Pillow
+scipy
+tqdm

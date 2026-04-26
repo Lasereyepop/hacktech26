@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IronSite — Site View</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #0a0a0a;
+        color: #e0e0e0;
+        font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+        overflow: hidden;
+        height: 100vh;
+      }
+
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 24px;
+        background: #111;
+        border-bottom: 1px solid #222;
+        height: 52px;
+      }
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .logo {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: #fff;
+      }
+      .logo span {
+        color: #666;
+        font-weight: 400;
+      }
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #22c55e;
+        animation: pulse 2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .timestamp {
+        font-size: 11px;
+        color: #666;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 2px;
+        background: #1a1a1a;
+        border-radius: 4px;
+        padding: 2px;
+      }
+      .tab {
+        padding: 5px 14px;
+        font-size: 10px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: #666;
+        text-decoration: none;
+        border-radius: 3px;
+        transition: all 0.2s;
+      }
+      .tab:hover {
+        color: #aaa;
+      }
+      .tab.active {
+        background: #2a2a2a;
+        color: #fff;
+      }
+
+      #canvas3d {
+        width: 100%;
+        height: calc(100vh - 52px);
+        display: block;
+      }
+
+      /* Worker detail panel */
+      .worker-panel {
+        position: fixed;
+        right: -380px;
+        top: 52px;
+        width: 360px;
+        height: calc(100vh - 52px);
+        background: #111;
+        border-left: 1px solid #222;
+        padding: 24px;
+        transition: right 0.35s ease;
+        overflow-y: auto;
+        z-index: 10;
+      }
+      .worker-panel.open {
+        right: 0;
+      }
+
+      .panel-close {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+        background: none;
+        border: 1px solid #333;
+        color: #888;
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .panel-close:hover {
+        border-color: #555;
+        color: #ccc;
+      }
+
+      .panel-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 4px;
+      }
+      .panel-subtitle {
+        font-size: 10px;
+        color: #666;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+      }
+
+      .panel-stat {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #1a1a1a;
+      }
+      .panel-stat-label {
+        font-size: 11px;
+        color: #888;
+      }
+      .panel-stat-value {
+        font-size: 13px;
+        font-weight: 600;
+        color: #fff;
+      }
+      .panel-stat-value.green {
+        color: #22c55e;
+      }
+      .panel-stat-value.yellow {
+        color: #eab308;
+      }
+      .panel-stat-value.red {
+        color: #ef4444;
+      }
+      .panel-stat-value.purple {
+        color: #9333ea;
+      }
+
+      .panel-divider {
+        height: 1px;
+        background: #222;
+        margin: 16px 0;
+      }
+
+      .panel-insight {
+        background: rgba(59, 130, 246, 0.06);
+        border: 1px solid rgba(59, 130, 246, 0.15);
+        border-radius: 6px;
+        padding: 10px 12px;
+        font-size: 11px;
+        line-height: 1.5;
+        color: #aaa;
+        margin-top: 12px;
+      }
+      .panel-insight strong {
+        color: #3b82f6;
+      }
+
+      .panel-video {
+        width: 100%;
+        border-radius: 6px;
+        margin: 12px 0;
+        background: #000;
+      }
+
+      /* Tooltip */
+      .hint {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px;
+        color: #444;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        pointer-events: none;
+        z-index: 5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="header-left">
+        <div class="status-dot"></div>
+        <div class="logo">IRONSITE <span>Spatial Intelligence</span></div>
+        <div class="tabs">
+          <a class="tab" href="index.html">Cameras</a>
+          <a class="tab" href="research.html">Research</a>
+          <a class="tab active" href="site.html">Site View</a>
+          <a class="tab" href="analytics.html">Analytics</a>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="timestamp" id="clock"></div>
+      </div>
+    </div>
+
+    <canvas id="canvas3d"></canvas>
+
+    <div class="worker-panel" id="workerPanel">
+      <button class="panel-close" onclick="closePanel()">×</button>
+      <div id="panelContent"></div>
+    </div>
+
+    <div class="hint">
+      Click a worker to inspect · Scroll to zoom · Drag to orbit
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+      const WORKERS = [
+        {
+          id: "w01",
+          name: "Worker 01",
+          task: "Masonry",
+          status: "ACTIVE",
+          color: 0x22c55e,
+          pos: [3, 6.3, 2],
+          cycles: 74,
+          cycleDur: 14.9,
+          speed: 0.378,
+          center: 48.3,
+          video: "public/videos/01_production_masonry_heatmap.mov",
+          insight:
+            "Fastest mason. Completes a block cycle every 14.9s — highest throughput on the team.",
+        },
+        {
+          id: "w04",
+          name: "Worker 04",
+          task: "Masonry",
+          status: "ACTIVE",
+          color: 0x22c55e,
+          pos: [-3, 6.3, 1],
+          cycles: 56,
+          cycleDur: 21.4,
+          speed: 0.394,
+          center: 38.6,
+          video: "public/videos/04_production_masonry_heatmap.mov",
+          insight:
+            "Steady pace, lowest center bias (38.6%) — actively scanning work area while building.",
+        },
+        {
+          id: "w05",
+          name: "Worker 05",
+          task: "Mech/Plumb",
+          status: "ACTIVE",
+          color: 0x22c55e,
+          pos: [0, 3.3, -2],
+          cycles: 13,
+          cycleDur: 85.8,
+          speed: 0.411,
+          center: 59.7,
+          video: "public/videos/05_production_mp_heatmap.mov",
+          insight:
+            "Mechanical work — long cycles (85.8s) indicate complex multi-step tasks vs repetitive masonry.",
+        },
+        {
+          id: "w09",
+          name: "Worker 09",
+          task: "Prep/Standby",
+          status: "PREP",
+          color: 0xeab308,
+          pos: [4, 3.3, -3],
+          cycles: 15,
+          cycleDur: 57.4,
+          speed: 0.348,
+          center: 58.2,
+          video: "public/videos/09_prep_standby_production_mp_heatmap.mov",
+          insight:
+            "Preparing materials. Moderate gaze speed with high center bias — surveying more than executing.",
+        },
+        {
+          id: "w12",
+          name: "Worker 12",
+          task: "Transit",
+          status: "TRANSIT",
+          color: 0x9333ea,
+          pos: [-4, 3.3, 0],
+          cycles: 14,
+          cycleDur: 80.4,
+          speed: 0.337,
+          center: 68.3,
+          video: "public/videos/12_downtime_prep_mp_heatmap.mov",
+          insight:
+            "In transit. High center bias (68.3%) and low gaze speed — walking, not working.",
+        },
+        {
+          id: "w13",
+          name: "Worker 13",
+          task: "Downtime",
+          status: "IDLE",
+          color: 0xef4444,
+          pos: [-1, 3.3, 2.6],
+          cycles: 13,
+          cycleDur: 88.8,
+          speed: 0.297,
+          center: 73.0,
+          video: "public/videos/13_transit_prep_mp_heatmap.mov",
+          insight:
+            "Idle period detected. Slowest gaze speed (0.297) and highest center bias (73%) — not engaged with any task.",
+        },
+      ];
+
+      const FLOOR_WIDTH = 10;
+      const FLOOR_DEPTH = 7.5;
+      const FLOOR_THICKNESS = 0.4;
+      const FLOOR_SPACING = 3.0;
+      const COLUMN_HEIGHT = 2.6;
+
+      // Three.js setup
+      const canvas = document.getElementById("canvas3d");
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x020813);
+      scene.fog = new THREE.Fog(0x000d1a, 20, 42);
+
+      const camera = new THREE.PerspectiveCamera(
+        50,
+        window.innerWidth / (window.innerHeight - 52),
+        0.1,
+        100,
+      );
+      camera.position.set(14, 12, 16);
+      camera.lookAt(0, 4.5, 0);
+
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight - 52);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = false;
+
+      const controls = new THREE.OrbitControls(camera, canvas);
+      controls.target.set(0, 4.5, 0);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.maxPolarAngle = Math.PI / 2.1;
+      controls.minDistance = 6;
+      controls.maxDistance = 30;
+
+      // Lighting
+      const ambient = new THREE.AmbientLight(0x0a1a2a, 0.5);
+      scene.add(ambient);
+
+      const ptLight1 = new THREE.PointLight(0x00d4ff, 1.5, 20);
+      ptLight1.position.set(0, 12, 0);
+      scene.add(ptLight1);
+
+      const ptLight2 = new THREE.PointLight(0x3b82f6, 0.8, 15);
+      ptLight2.position.set(-8, 4, 8);
+      scene.add(ptLight2);
+
+      // Ground
+      const groundGeo = new THREE.PlaneGeometry(30, 30);
+      const groundMat = new THREE.MeshBasicMaterial({ color: 0x020a10 });
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      ground.rotation.x = -Math.PI / 2;
+      scene.add(ground);
+
+      // Grid helper
+      const grid = new THREE.GridHelper(30, 30, 0x004466, 0x001a2a);
+      grid.position.y = 0.01;
+      scene.add(grid);
+
+      // Building
+      function makeWireBox(width, height, depth, color, opacity) {
+        const geo = new THREE.BoxGeometry(width, height, depth);
+        const edges = new THREE.EdgesGeometry(geo);
+        return new THREE.LineSegments(
+          edges,
+          new THREE.LineBasicMaterial({ color, transparent: true, opacity }),
+        );
+      }
+
+      function buildFloor(y, complete) {
+        const group = new THREE.Group();
+
+        // Floor slab
+        const slab = makeWireBox(
+          FLOOR_WIDTH,
+          FLOOR_THICKNESS,
+          FLOOR_DEPTH,
+          0x00d4ff,
+          0.55,
+        );
+        slab.position.y = y;
+        group.add(slab);
+
+        // Columns
+        const positions = [
+          [-4.4, -3.1],
+          [-4.4, 3.1],
+          [4.4, -3.1],
+          [4.4, 3.1],
+          [0, -3.1],
+          [0, 3.1],
+        ];
+        positions.forEach(([x, z]) => {
+          const col = makeWireBox(0.35, COLUMN_HEIGHT, 0.35, 0x00d4ff, 0.55);
+          col.position.set(x, y + FLOOR_THICKNESS / 2 + COLUMN_HEIGHT / 2, z);
+          group.add(col);
+        });
+
+        // Walls (partial on upper floors)
+        if (complete) {
+          const wallBack = makeWireBox(
+            FLOOR_WIDTH,
+            COLUMN_HEIGHT,
+            0.18,
+            0x00d4ff,
+            0.55,
+          );
+          wallBack.position.set(
+            0,
+            y + FLOOR_THICKNESS / 2 + COLUMN_HEIGHT / 2,
+            -3.65,
+          );
+          group.add(wallBack);
+
+          const wallLeft = makeWireBox(
+            0.18,
+            COLUMN_HEIGHT,
+            FLOOR_DEPTH,
+            0x00d4ff,
+            0.55,
+          );
+          wallLeft.position.set(
+            -4.9,
+            y + FLOOR_THICKNESS / 2 + COLUMN_HEIGHT / 2,
+            0,
+          );
+          group.add(wallLeft);
+        } else {
+          const partialWall = makeWireBox(5, 1.2, 0.18, 0x005577, 0.3);
+          partialWall.position.set(-2.3, y + FLOOR_THICKNESS / 2 + 0.6, -3.65);
+          group.add(partialWall);
+        }
+
+        return group;
+      }
+
+      // Build 4 floors — bottom 2 complete, top 2 under construction
+      for (let i = 0; i < 4; i++) {
+        const floor = buildFloor(i * FLOOR_SPACING, i < 2);
+        scene.add(floor);
+      }
+
+      // Workers
+      const workerMeshes = [];
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+
+      function createWorker(w) {
+        const group = new THREE.Group();
+        group.userData = w;
+
+        const dot = new THREE.Mesh(
+          new THREE.SphereGeometry(0.25, 12, 12),
+          new THREE.MeshBasicMaterial({ color: w.color }),
+        );
+        dot.position.y = 0;
+        group.add(dot);
+
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(0.3, 0.5, 32),
+          new THREE.MeshBasicMaterial({
+            color: w.color,
+            transparent: true,
+            opacity: 0.2,
+            side: THREE.DoubleSide,
+          }),
+        );
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.y = -0.3;
+        group.add(ring);
+
+        group.position.set(...w.pos);
+
+        // Status label as canvas texture
+        const labelCanvas = document.createElement("canvas");
+        labelCanvas.width = 256;
+        labelCanvas.height = 64;
+        const ctx = labelCanvas.getContext("2d");
+
+        function drawLabel() {
+          ctx.clearRect(0, 0, 256, 64);
+          ctx.fillStyle = "rgba(0,0,0,0.7)";
+          ctx.beginPath();
+          ctx.roundRect(8, 4, 240, 50, 8);
+          ctx.fill();
+
+          const statusColors = {
+            ACTIVE: "#22c55e",
+            PREP: "#eab308",
+            IDLE: "#ef4444",
+            TRANSIT: "#9333ea",
+          };
+          ctx.fillStyle = statusColors[w.status] || "#888";
+          ctx.beginPath();
+          ctx.arc(28, 29, 6, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.font = "bold 18px monospace";
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(w.name, 42, 26);
+
+          ctx.font = "13px monospace";
+          ctx.fillStyle = statusColors[w.status] || "#888";
+          ctx.fillText(w.status, 42, 44);
+
+          labelTexture.needsUpdate = true;
+        }
+
+        const labelTexture = new THREE.CanvasTexture(labelCanvas);
+        const labelMat = new THREE.SpriteMaterial({
+          map: labelTexture,
+          transparent: true,
+        });
+        const label = new THREE.Sprite(labelMat);
+        label.position.set(0, 0.7, 0);
+        label.scale.set(1.8, 0.45, 1);
+        group.add(label);
+
+        drawLabel();
+
+        scene.add(group);
+        workerMeshes.push(group);
+
+        // Store animation state
+        group.userData.animTime = Math.random() * Math.PI * 2;
+        group.userData.dot = dot;
+        group.userData.ring = ring;
+
+        return group;
+      }
+
+      WORKERS.forEach((w) => createWorker(w));
+
+      // Click detection
+      canvas.addEventListener("click", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const hits = raycaster.intersectObjects(workerMeshes, true);
+
+        if (hits.length > 0) {
+          let obj = hits[0].object;
+          while (obj.parent && !obj.userData.id) obj = obj.parent;
+          if (obj.userData.id) openPanel(obj.userData);
+        }
+      });
+
+      function openPanel(w) {
+        const panel = document.getElementById("workerPanel");
+        const content = document.getElementById("panelContent");
+
+        const statusColors = {
+          ACTIVE: "green",
+          PREP: "yellow",
+          IDLE: "red",
+          TRANSIT: "purple",
+        };
+        const sc = statusColors[w.status] || "";
+
+        content.innerHTML = `
+        <div class="panel-title">${w.name}</div>
+        <div class="panel-subtitle">${w.task} · <span style="color:var(--c)">${w.status}</span></div>
+
+        <video class="panel-video" src="${w.video}" autoplay loop muted playsinline></video>
+
+        <div class="panel-stat"><span class="panel-stat-label">Status</span><span class="panel-stat-value ${sc}">${w.status}</span></div>
+        <div class="panel-stat"><span class="panel-stat-label">Gaze Speed</span><span class="panel-stat-value">${w.speed.toFixed(3)}</span></div>
+        <div class="panel-stat"><span class="panel-stat-label">Work Cycles</span><span class="panel-stat-value">${w.cycles}</span></div>
+        <div class="panel-stat"><span class="panel-stat-label">Avg Cycle Duration</span><span class="panel-stat-value">${w.cycleDur.toFixed(1)}s</span></div>
+        <div class="panel-stat"><span class="panel-stat-label">Center Bias</span><span class="panel-stat-value">${w.center.toFixed(1)}%</span></div>
+        <div class="panel-stat"><span class="panel-stat-label">Engagement</span><span class="panel-stat-value ${w.center < 50 ? "green" : w.center < 65 ? "yellow" : "red"}">${w.center < 50 ? "HIGH" : w.center < 65 ? "MODERATE" : "LOW"}</span></div>
+
+        <div class="panel-divider"></div>
+        <div class="panel-insight"><strong>Analysis:</strong> ${w.insight}</div>
+    `;
+
+        panel.classList.add("open");
+      }
+
+      function closePanel() {
+        document.getElementById("workerPanel").classList.remove("open");
+      }
+
+      // Animation
+      function animate() {
+        requestAnimationFrame(animate);
+        const t = performance.now() * 0.001;
+
+        workerMeshes.forEach((wm) => {
+          const d = wm.userData;
+          const at = d.animTime + t;
+          const dot = d.dot;
+          const ring = d.ring;
+
+          if (d.status === "ACTIVE") {
+            dot.scale.setScalar(0.9 + Math.sin(at * 4) * 0.1);
+            dot.material.color.setHex(d.color);
+          } else if (d.status === "TRANSIT") {
+            wm.position.x = d.pos[0] + (Math.sin(at * 0.3) + 1) * 1.2;
+            dot.scale.setScalar(0.9 + Math.sin(at * 3) * 0.08);
+          } else if (d.status === "IDLE") {
+            dot.scale.setScalar(0.85 + Math.sin(at * 0.8) * 0.07);
+          } else if (d.status === "PREP") {
+            dot.scale.setScalar(0.88 + Math.sin(at * 2) * 0.09);
+          }
+
+          ring.material.opacity = 0.12 + Math.sin(at * 2) * 0.08;
+        });
+
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      animate();
+
+      // Resize
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / (window.innerHeight - 52);
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight - 52);
+      });
+
+      // Clock
+      function updateClock() {
+        const now = new Date();
+        document.getElementById("clock").textContent =
+          now.toLocaleTimeString("en-US", { hour12: false }) +
+          "  " +
+          now.toLocaleDateString("en-US");
+      }
+      updateClock();
+      setInterval(updateClock, 1000);
+
+      // Escape to close panel
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closePanel();
+      });
+    </script>
+  </body>
+</html>

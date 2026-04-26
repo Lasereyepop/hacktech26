@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IronSite — Analytics</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; min-height: 100vh; }
+
+.header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #111; border-bottom: 1px solid #222; height: 52px; position: sticky; top: 0; z-index: 100; }
+.header-left { display: flex; align-items: center; gap: 16px; }
+.logo { font-size: 14px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #fff; }
+.logo span { color: #666; font-weight: 400; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.header-right { display: flex; align-items: center; gap: 20px; }
+.timestamp { font-size: 11px; color: #666; }
+.tabs { display: flex; gap: 2px; background: #1a1a1a; border-radius: 4px; padding: 2px; }
+.tab { padding: 5px 14px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #666; text-decoration: none; border-radius: 3px; transition: all 0.2s; }
+.tab:hover { color: #aaa; }
+.tab.active { background: #2a2a2a; color: #fff; }
+
+.page { padding: 24px 28px 80px; max-width: 1600px; margin: 0 auto; }
+
+/* Section heading */
+.section-head { display: flex; align-items: baseline; justify-content: space-between; margin: 28px 0 14px; }
+.section-title { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #888; }
+.section-sub { font-size: 10px; color: #444; letter-spacing: 1px; }
+
+/* ================= KPI Strip ================= */
+.kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+.kpi-tile { background: #111; border: 1px solid #222; border-radius: 6px; padding: 16px 18px; min-height: 92px; }
+.kpi-label { font-size: 10px; color: #666; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; }
+.kpi-value { font-size: 28px; font-weight: 800; color: #fff; line-height: 1.1; }
+.kpi-unit { font-size: 12px; color: #555; font-weight: 400; margin-left: 4px; }
+.kpi-meta { font-size: 10px; color: #555; margin-top: 6px; letter-spacing: 0.5px; }
+.kpi-tile.green .kpi-value { color: #22c55e; }
+.kpi-tile.yellow .kpi-value { color: #eab308; }
+.kpi-tile.red .kpi-value { color: #ef4444; }
+.kpi-tile.purple .kpi-value { color: #9333ea; }
+
+/* ================= Composition Row ================= */
+.comp-row { display: grid; grid-template-columns: 360px 1fr; gap: 12px; }
+.panel { background: #111; border: 1px solid #222; border-radius: 6px; padding: 18px; }
+.panel-h { font-size: 10px; color: #666; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 14px; }
+.donut-wrap { display: flex; align-items: center; gap: 24px; }
+.donut-wrap svg { width: 140px; height: 140px; flex-shrink: 0; }
+.donut-legend { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.legend-row { display: flex; align-items: center; gap: 10px; font-size: 11px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+.legend-label { color: #aaa; flex: 1; }
+.legend-val { color: #fff; font-weight: 600; }
+.legend-pct { color: #555; font-size: 10px; margin-left: 6px; }
+
+/* Stacked bar */
+.stack-bar { width: 100%; height: 28px; border-radius: 4px; overflow: hidden; display: flex; }
+.stack-seg { height: 100%; transition: opacity 0.2s; }
+.stack-seg:hover { opacity: 0.85; }
+.stack-legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px; }
+
+/* ================= Cross-task ================= */
+.task-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.task-chart { background: #111; border: 1px solid #222; border-radius: 6px; padding: 16px; }
+.bar-row { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 11px; }
+.bar-label { width: 80px; color: #aaa; text-align: right; font-size: 10px; }
+.bar-track { flex: 1; height: 8px; background: #1a1a1a; border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+.bar-val { width: 50px; text-align: right; font-size: 10px; color: #888; }
+
+/* ================= Leaderboard table ================= */
+.lb-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.lb-table thead th { background: #161616; color: #888; font-weight: 600; text-align: left; padding: 10px 12px; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; user-select: none; border-bottom: 1px solid #222; }
+.lb-table thead th:hover { color: #ccc; }
+.lb-table thead th.sorted { color: #3b82f6; }
+.lb-table thead th .arrow { font-size: 8px; margin-left: 4px; opacity: 0.6; }
+.lb-table tbody tr { border-bottom: 1px solid #1a1a1a; cursor: pointer; transition: background 0.15s; }
+.lb-table tbody tr:hover { background: rgba(59,130,246,0.05); }
+.lb-table tbody tr.top { box-shadow: inset 3px 0 0 #22c55e; }
+.lb-table tbody tr.bottom { box-shadow: inset 3px 0 0 #ef4444; }
+.lb-table td { padding: 10px 12px; color: #ccc; }
+.lb-table td.num { font-variant-numeric: tabular-nums; }
+.status-pill-sm { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; }
+.pill-production { background: rgba(34,197,94,0.18); color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+.pill-prep { background: rgba(234,179,8,0.18); color: #eab308; border: 1px solid rgba(234,179,8,0.3); }
+.pill-transit { background: rgba(147,51,234,0.18); color: #9333ea; border: 1px solid rgba(147,51,234,0.3); }
+.pill-downtime { background: rgba(239,68,68,0.18); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+.pill-unknown { background: rgba(136,136,136,0.18); color: #888; border: 1px solid rgba(136,136,136,0.3); }
+
+/* ================= Worker cards ================= */
+.cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.worker-card { background: #111; border: 1px solid #222; border-radius: 6px; padding: 14px 16px; cursor: pointer; transition: all 0.2s; }
+.worker-card:hover { border-color: #3b82f6; transform: translateY(-1px); }
+.wc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.wc-name { font-size: 12px; color: #fff; font-weight: 700; letter-spacing: 1px; }
+.wc-task { font-size: 10px; color: #555; letter-spacing: 0.5px; margin-bottom: 12px; }
+.wc-spark { width: 100%; height: 38px; margin: 6px 0 12px; background: #0c0c0c; border-radius: 3px; }
+.wc-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.wc-stat { background: #161616; border-radius: 4px; padding: 6px 8px; }
+.wc-stat-label { font-size: 9px; color: #555; letter-spacing: 1px; text-transform: uppercase; }
+.wc-stat-val { font-size: 14px; color: #eee; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ================= Insights ================= */
+.insight-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.insight-item { background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.18); border-left: 3px solid #3b82f6; border-radius: 4px; padding: 10px 14px; font-size: 12px; line-height: 1.5; color: #bbb; }
+.insight-item strong { color: #fff; }
+.insight-item.warn { background: rgba(239,68,68,0.05); border-color: rgba(239,68,68,0.25); border-left-color: #ef4444; }
+.insight-item.warn strong { color: #fca5a5; }
+.insight-item.good { background: rgba(34,197,94,0.05); border-color: rgba(34,197,94,0.25); border-left-color: #22c55e; }
+.insight-item.good strong { color: #86efac; }
+
+/* ================= Modal drill-down ================= */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 200; display: none; align-items: flex-start; justify-content: center; padding: 60px 24px; overflow-y: auto; }
+.modal-backdrop.open { display: flex; }
+.modal { width: 100%; max-width: 1100px; background: #0e0e0e; border: 1px solid #2a2a2a; border-radius: 8px; padding: 24px 28px; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.modal-title { font-size: 16px; font-weight: 700; color: #fff; letter-spacing: 1px; }
+.modal-close { background: transparent; border: 1px solid #333; color: #888; padding: 5px 12px; font-family: inherit; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; border-radius: 4px; cursor: pointer; }
+.modal-close:hover { color: #fff; border-color: #555; }
+.modal-sub { font-size: 11px; color: #555; letter-spacing: 1px; margin-bottom: 20px; }
+
+.modal-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 22px; }
+.modal-stat { background: #161616; border-radius: 6px; padding: 12px 14px; }
+.modal-stat .lbl { font-size: 9px; color: #555; letter-spacing: 1.5px; text-transform: uppercase; }
+.modal-stat .val { font-size: 22px; color: #fff; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.modal-stat .val .u { font-size: 11px; color: #555; font-weight: 400; margin-left: 3px; }
+
+.modal-section { margin-top: 18px; }
+.modal-section h4 { font-size: 10px; color: #666; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; }
+
+.timeline { width: 100%; height: 160px; background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 4px; }
+
+.region-bars .bar-row { font-size: 11px; }
+.cycles-list { max-height: 260px; overflow-y: auto; border: 1px solid #1a1a1a; border-radius: 4px; }
+.cycle-row { display: grid; grid-template-columns: 60px 1fr 1fr 80px; gap: 12px; padding: 6px 12px; font-size: 11px; border-bottom: 1px solid #161616; color: #aaa; }
+.cycle-row:nth-child(odd) { background: #0d0d0d; }
+.cycle-row .idx { color: #555; }
+.cycle-row .dur { color: #fff; text-align: right; font-variant-numeric: tabular-nums; }
+
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+/* ================= Loading / Error ================= */
+.center-msg { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 14px; color: #666; }
+.center-msg .big { font-size: 14px; color: #aaa; letter-spacing: 1px; text-transform: uppercase; }
+.center-msg code { background: #161616; padding: 2px 8px; border-radius: 3px; color: #ccc; font-size: 11px; }
+.center-msg .hint-line { font-size: 11px; color: #555; }
+
+.spinner { width: 24px; height: 24px; border: 2px solid #222; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 1200px) {
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  .task-grid { grid-template-columns: 1fr; }
+  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+  .modal-stats { grid-template-columns: repeat(3, 1fr); }
+  .modal-grid { grid-template-columns: 1fr; }
+  .comp-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .cards-grid { grid-template-columns: 1fr; }
+  .insight-list { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <div class="status-dot"></div>
+        <div class="logo">IRONSITE <span>Spatial Intelligence</span></div>
+        <div class="tabs">
+            <a class="tab" href="index.html">Cameras</a>
+            <a class="tab" href="research.html">Research</a>
+            <a class="tab" href="site.html">Site View</a>
+            <a class="tab active" href="analytics.html">Analytics</a>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="timestamp" id="clock"></div>
+    </div>
+</div>
+
+<div class="page" id="page">
+    <div class="center-msg" id="loading">
+        <div class="spinner"></div>
+        <div class="big">Loading analytics</div>
+        <div class="hint-line">Reading <code>data/ironsite_analysis.json</code></div>
+    </div>
+</div>
+
+<div class="modal-backdrop" id="modal" onclick="if(event.target===this)closeModal()">
+    <div class="modal" id="modalBody"></div>
+</div>
+
+<script>
+// =====================================================================
+// Constants
+// =====================================================================
+const TASK_COLORS = {
+    production: '#22c55e',
+    prep: '#eab308',
+    transit: '#9333ea',
+    downtime: '#ef4444',
+    unknown: '#888888',
+};
+const STATE_COLORS = {
+    focused: '#22c55e',
+    moderate: '#eab308',
+    diffuse: '#ef4444',
+};
+const REGION_COLORS = {
+    TL: '#3b82f6',
+    TR: '#8b5cf6',
+    BL: '#06b6d4',
+    BR: '#ec4899',
+    CENTER: '#eab308',
+};
+
+// =====================================================================
+// Helpers
+// =====================================================================
+function baseTask(label) {
+    if (!label) return 'unknown';
+    const first = String(label).trim().split(/\s+/)[0].toLowerCase();
+    return TASK_COLORS[first] ? first : 'unknown';
+}
+function stemName(name) {
+    return String(name).replace(/\.[^.]+$/, '');
+}
+function canonicalVideoKey(name) {
+    const stem = stemName(name).replace(/_(raw|heatmap)$/, '');
+    return ({
+        '09_prep_standby_production_mp': '09_prep_standby',
+        '12_downtime_prep_mp': '12_downtime',
+        '13_transit_prep_mp': '13_transit',
+    })[stem] || stem;
+}
+function sourcePriority(name) {
+    if (/_raw(?:\.[^.]+)?$/.test(String(name))) return 2;
+    if (/_heatmap(?:\.[^.]+)?$/.test(String(name))) return 1;
+    return 0;
+}
+function workerIdFromName(name) {
+    // "01_production_masonry.mov" -> "Worker 01"
+    const m = String(name).match(/^(\d+)/);
+    return m ? `Worker ${m[1]}` : stemName(name);
+}
+function taskDescription(name, taskLabel) {
+    // human-friendly task description from filename + parsed label
+    const tail = stemName(name).replace(/^\d+_/, '').replace(/_/g, ' ');
+    return tail || taskLabel || 'unknown';
+}
+function fmtDuration(seconds) {
+    if (!seconds || seconds < 1) return '0s';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+}
+function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+function fmtNum(v, digits = 2) { return Number(v).toFixed(digits); }
+function statusFromTask(task) {
+    return ({
+        production: 'Working',
+        prep: 'Preparing',
+        transit: 'Moving',
+        downtime: 'Idle',
+    })[task] || 'Unknown';
+}
+
+// =====================================================================
+// Data loading
+// =====================================================================
+let DATA = null;          // { videoName: {summary, cycles, segments, frames?} }
+let WORKERS = [];          // normalized list of workers w/ flattened summary
+let SITE = null;           // site-wide aggregates
+
+async function load() {
+    try {
+        const res = await fetch('data/ironsite_analysis.json', { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        DATA = canonicalizeData(await res.json());
+        normalize();
+        render();
+    } catch (err) {
+        renderError(err);
+    }
+}
+
+function canonicalizeData(rawData) {
+    const canonical = {};
+    const chosen = {};
+
+    for (const [videoName, blob] of Object.entries(rawData || {})) {
+        const key = canonicalVideoKey(videoName);
+        const priority = sourcePriority(videoName);
+        if ((chosen[key] ?? -1) > priority) continue;
+        chosen[key] = priority;
+        canonical[key] = blob;
+    }
+
+    return canonical;
+}
+
+function normalize() {
+    WORKERS = Object.entries(DATA).map(([videoName, blob]) => {
+        const s = blob.summary || {};
+        const tb = s.time_breakdown || {};
+        const focus = s.focus || {};
+        const speed = s.gaze_speed || {};
+        const region = s.region_preference || {};
+        const task = baseTask(s.task_label);
+        return {
+            videoName,
+            workerId: workerIdFromName(videoName),
+            task,
+            taskDesc: taskDescription(videoName, s.task_label),
+            cycles: s.cycles_detected || 0,
+            cycleDur: s.avg_cycle_duration_s || 0,
+            duration: s.total_duration_s || 0,
+            framesAnalyzed: s.frames_analyzed || 0,
+            focusMean: focus.mean || 0,
+            focusStd: focus.std || 0,
+            focusMin: focus.min || 0,
+            focusMax: focus.max || 0,
+            speedAvg: speed.avg || 0,
+            speedMax: speed.max || 0,
+            focusedS: tb.focused_s || 0,
+            diffuseS: tb.diffuse_s || 0,
+            moderateS: tb.moderate_s || 0,
+            focusedPct: tb.focused_pct || 0,
+            diffusePct: tb.diffuse_pct || 0,
+            regionPref: region,
+            centerPct: regionCenterPct(region),
+            cyclesArr: blob.cycles || [],
+            segmentsArr: blob.segments || [],
+            frames: blob.frames || null,  // may be null if model wasn't re-run
+        };
+    });
+
+    // Site-wide aggregates
+    const totalDur = WORKERS.reduce((a, w) => a + w.duration, 0);
+    const totalCycles = WORKERS.reduce((a, w) => a + w.cycles, 0);
+
+    const weightedSpeed = WORKERS.reduce((a, w) => a + w.speedAvg * w.duration, 0);
+    const weightedCenter = WORKERS.reduce((a, w) => a + w.centerPct * w.duration, 0);
+    const avgGazeSpeedWeighted = totalDur > 0 ? weightedSpeed / totalDur : 0;
+    const avgCenterBiasWeighted = totalDur > 0 ? weightedCenter / totalDur : 0;
+
+    // Production-only avg cycle pace
+    const prodWorkers = WORKERS.filter(w => w.task === 'production' && w.cycleDur > 0);
+    const avgPace = prodWorkers.length
+        ? prodWorkers.reduce((a, w) => a + w.cycleDur, 0) / prodWorkers.length
+        : 0;
+
+    // Task breakdown
+    const taskBreakdown = {};
+    for (const w of WORKERS) {
+        taskBreakdown[w.task] = (taskBreakdown[w.task] || 0) + w.duration;
+    }
+
+    SITE = {
+        totalWorkers: WORKERS.length,
+        totalCycles,
+        totalDur,
+        avgPace,
+        avgGazeSpeedWeighted,
+        avgCenterBiasWeighted,
+        taskBreakdown,
+        prodCount: WORKERS.filter(w => w.task === 'production').length,
+    };
+}
+
+function regionCenterPct(region) {
+    const total = Object.values(region).reduce((a, b) => a + b, 0);
+    if (!total) return 0;
+    return ((region.CENTER || 0) / total) * 100;
+}
+
+// =====================================================================
+// Render
+// =====================================================================
+function render() {
+    const page = document.getElementById('page');
+    page.innerHTML = `
+        <div class="section-head"><div class="section-title">Site Overview</div><div class="section-sub">${SITE.totalWorkers} workers · ${fmtDuration(SITE.totalDur)} total session</div></div>
+        ${renderKPIs()}
+
+        <div class="section-head"><div class="section-title">Task Mix</div></div>
+        ${renderTaskMix()}
+
+        <div class="section-head"><div class="section-title">Cross-Task Comparison</div></div>
+        ${renderCrossTask()}
+
+        <div class="section-head"><div class="section-title">Worker Leaderboard</div><div class="section-sub">Click a row to drill in · Click headers to sort</div></div>
+        <div class="panel" style="padding:0">${renderLeaderboard()}</div>
+
+        <div class="section-head"><div class="section-title">Workers</div><div class="section-sub">Click any card to inspect</div></div>
+        ${renderWorkerCards()}
+
+        <div class="section-head"><div class="section-title">Insights</div></div>
+        ${renderInsights()}
+    `;
+    attachLeaderboardSorting();
+    attachCardClicks();
+}
+
+function renderError(err) {
+    document.getElementById('page').innerHTML = `
+        <div class="center-msg">
+            <div class="big" style="color:#ef4444">Failed to load analytics</div>
+            <div class="hint-line">${String(err.message || err)}</div>
+            <div class="hint-line">Make sure <code>ironsite/data/ironsite_analysis.json</code> exists, then serve via:</div>
+            <div class="hint-line"><code>python -m http.server</code> from the <code>ironsite/</code> directory</div>
+            <div class="hint-line">Or regenerate with <code>python -m model.analyze_ironsite --checkpoint &lt;path&gt;</code></div>
+        </div>
+    `;
+}
+
+// =====================================================================
+// KPI strip
+// =====================================================================
+function renderKPIs() {
+    const kpis = [
+        { label: 'Workers Tracked', value: SITE.totalWorkers, meta: `${SITE.prodCount} in production` },
+        { label: 'Total Cycles', value: SITE.totalCycles.toLocaleString(), meta: 'across all workers', cls: 'green' },
+        { label: 'Avg Pace', value: SITE.avgPace > 0 ? fmtNum(SITE.avgPace, 1) : '—', unit: 's/cycle', meta: 'production workers', cls: 'yellow' },
+        { label: 'Avg Gaze Speed', value: fmtNum(SITE.avgGazeSpeedWeighted, 3), meta: 'site-wide weighted' },
+        { label: 'Avg Center Bias', value: fmtNum(SITE.avgCenterBiasWeighted, 1), unit: '%', meta: 'lower = more scanning' },
+        { label: 'Total Session', value: fmtDuration(SITE.totalDur), meta: `${SITE.totalWorkers} videos` },
+    ];
+    return `<div class="kpi-grid">${kpis.map(k => `
+        <div class="kpi-tile ${k.cls || ''}">
+            <div class="kpi-label">${k.label}</div>
+            <div class="kpi-value">${k.value}${k.unit ? `<span class="kpi-unit">${k.unit}</span>` : ''}</div>
+            <div class="kpi-meta">${k.meta || ''}</div>
+        </div>
+    `).join('')}</div>`;
+}
+
+// =====================================================================
+// Task mix
+// =====================================================================
+function renderTaskMix() {
+    const total = Math.max(1, SITE.totalDur);
+    const order = ['production', 'prep', 'transit', 'downtime', 'unknown'];
+    const segs = order
+        .filter(t => (SITE.taskBreakdown[t] || 0) > 0)
+        .map(t => ({
+            label: t,
+            val: SITE.taskBreakdown[t],
+            pct: SITE.taskBreakdown[t] / total * 100,
+            color: TASK_COLORS[t],
+        }));
+    return `
+        <div class="panel">
+            <div class="panel-h">Task Time Mix</div>
+            <div class="stack-bar">
+                ${segs.map(s => `<div class="stack-seg" style="width:${s.pct}%;background:${s.color}" title="${s.label} ${fmtNum(s.pct,1)}%"></div>`).join('')}
+            </div>
+            <div class="stack-legend">
+                ${segs.map(s => `
+                    <div class="legend-row" style="gap:6px">
+                        <div class="legend-dot" style="background:${s.color}"></div>
+                        <div class="legend-label" style="text-transform:capitalize">${s.label}</div>
+                        <div class="legend-val">${fmtDuration(s.val)}</div>
+                        <div class="legend-pct">${fmtNum(s.pct,1)}%</div>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="panel-h" style="margin-top:18px">Worker Count by Task</div>
+            <div style="display:flex;gap:18px;flex-wrap:wrap">
+                ${order.map(t => {
+                    const n = WORKERS.filter(w => w.task === t).length;
+                    if (!n) return '';
+                    return `<div style="display:flex;align-items:center;gap:8px">
+                        <div style="font-size:22px;color:${TASK_COLORS[t]};font-weight:800">${n}</div>
+                        <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px">${t}</div>
+                    </div>`;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// =====================================================================
+// Cross-task comparison (3 grouped bar charts)
+// =====================================================================
+function renderCrossTask() {
+    const groups = {};
+    for (const w of WORKERS) {
+        if (!groups[w.task]) groups[w.task] = [];
+        groups[w.task].push(w);
+    }
+    const order = ['production', 'prep', 'transit', 'downtime', 'unknown'].filter(t => groups[t]);
+
+    const metrics = [
+        {
+            title: 'Avg Cycles per Worker',
+            extract: ws => ws.reduce((a, w) => a + w.cycles, 0) / ws.length,
+            fmt: v => fmtNum(v, 1),
+        },
+        {
+            title: 'Avg Gaze Speed',
+            extract: ws => ws.reduce((a, w) => a + w.speedAvg, 0) / ws.length,
+            fmt: v => fmtNum(v, 3),
+        },
+        {
+            title: 'Avg Focus Score',
+            extract: ws => ws.reduce((a, w) => a + w.focusMean, 0) / ws.length,
+            fmt: v => fmtNum(v, 4),
+        },
+    ];
+
+    return `<div class="task-grid">${metrics.map(m => {
+        const rows = order.map(t => ({ task: t, val: m.extract(groups[t]) }));
+        const maxVal = Math.max(...rows.map(r => r.val), 0.0001);
+        return `
+            <div class="task-chart">
+                <div class="panel-h">${m.title}</div>
+                ${rows.map(r => `
+                    <div class="bar-row">
+                        <div class="bar-label" style="text-transform:capitalize">${r.task}</div>
+                        <div class="bar-track"><div class="bar-fill" style="width:${(r.val/maxVal*100)}%;background:${TASK_COLORS[r.task]}"></div></div>
+                        <div class="bar-val">${m.fmt(r.val)}</div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }).join('')}</div>`;
+}
+
+// =====================================================================
+// Leaderboard table
+// =====================================================================
+let SORT_KEY = 'cycles';
+let SORT_DIR = -1;  // -1 desc, 1 asc
+
+function renderLeaderboard() {
+    const cols = [
+        { key: 'workerId', label: 'Worker', num: false },
+        { key: 'taskDesc', label: 'Task', num: false },
+        { key: 'cycles', label: 'Cycles', num: true, fmt: v => v },
+        { key: 'cycleDur', label: 'Pace (s)', num: true, fmt: v => v ? fmtNum(v, 1) : '—' },
+        { key: 'speedAvg', label: 'Gaze Speed', num: true, fmt: v => fmtNum(v, 3) },
+        { key: 'focusMean', label: 'Focus', num: true, fmt: v => fmtNum(v, 4) },
+        { key: 'centerPct', label: 'Center %', num: true, fmt: v => fmtNum(v, 1) + '%' },
+        { key: 'duration', label: 'Duration', num: true, fmt: v => fmtDuration(v) },
+        { key: 'task', label: 'Status', num: false },
+    ];
+
+    const sorted = [...WORKERS].sort((a, b) => {
+        const va = a[SORT_KEY], vb = b[SORT_KEY];
+        if (typeof va === 'number') return (va - vb) * SORT_DIR;
+        return String(va).localeCompare(String(vb)) * SORT_DIR;
+    });
+
+    // Mark top/bottom rows on numeric sorts
+    const topId = sorted[0]?.videoName;
+    const bottomId = sorted[sorted.length - 1]?.videoName;
+    const isNumericSort = cols.find(c => c.key === SORT_KEY)?.num;
+
+    return `
+        <table class="lb-table">
+            <thead>
+                <tr>${cols.map(c => `
+                    <th data-key="${c.key}" class="${SORT_KEY === c.key ? 'sorted' : ''}">
+                        ${c.label}
+                        ${SORT_KEY === c.key ? `<span class="arrow">${SORT_DIR < 0 ? '▼' : '▲'}</span>` : ''}
+                    </th>
+                `).join('')}</tr>
+            </thead>
+            <tbody>${sorted.map(w => {
+                const cls = isNumericSort ? (w.videoName === topId ? 'top' : w.videoName === bottomId ? 'bottom' : '') : '';
+                return `<tr class="${cls}" data-video="${w.videoName}">
+                    <td>${w.workerId}</td>
+                    <td style="color:#888">${w.taskDesc}</td>
+                    <td class="num">${w.cycles}</td>
+                    <td class="num">${w.cycleDur ? fmtNum(w.cycleDur, 1) : '—'}</td>
+                    <td class="num">${fmtNum(w.speedAvg, 3)}</td>
+                    <td class="num">${fmtNum(w.focusMean, 4)}</td>
+                    <td class="num">${fmtNum(w.centerPct, 1)}%</td>
+                    <td class="num" style="color:#888">${fmtDuration(w.duration)}</td>
+                    <td><span class="status-pill-sm pill-${w.task}">${statusFromTask(w.task)}</span></td>
+                </tr>`;
+            }).join('')}</tbody>
+        </table>
+    `;
+}
+
+function attachLeaderboardSorting() {
+    document.querySelectorAll('.lb-table thead th').forEach(th => {
+        th.addEventListener('click', () => {
+            const key = th.dataset.key;
+            if (SORT_KEY === key) SORT_DIR *= -1;
+            else { SORT_KEY = key; SORT_DIR = -1; }
+            // Re-render only the table panel
+            const panel = document.querySelector('.lb-table').parentElement;
+            panel.innerHTML = renderLeaderboard();
+            attachLeaderboardSorting();
+            attachRowClicks();
+        });
+    });
+    attachRowClicks();
+}
+
+function attachRowClicks() {
+    document.querySelectorAll('.lb-table tbody tr').forEach(tr => {
+        tr.addEventListener('click', () => openModal(tr.dataset.video));
+    });
+}
+
+// =====================================================================
+// Worker cards
+// =====================================================================
+function renderWorkerCards() {
+    return `<div class="cards-grid">${WORKERS.map(w => `
+        <div class="worker-card" data-video="${w.videoName}">
+            <div class="wc-head">
+                <div class="wc-name">${w.workerId}</div>
+                <span class="status-pill-sm pill-${w.task}">${statusFromTask(w.task)}</span>
+            </div>
+            <div class="wc-task">${w.taskDesc}</div>
+            ${sparklineSVG(w)}
+            <div class="wc-stats">
+                <div class="wc-stat"><div class="wc-stat-label">Cycles</div><div class="wc-stat-val">${w.cycles}</div></div>
+                <div class="wc-stat"><div class="wc-stat-label">Pace</div><div class="wc-stat-val">${w.cycleDur ? fmtNum(w.cycleDur,1)+'s' : '—'}</div></div>
+                <div class="wc-stat"><div class="wc-stat-label">Speed</div><div class="wc-stat-val">${fmtNum(w.speedAvg,3)}</div></div>
+                <div class="wc-stat"><div class="wc-stat-label">Center</div><div class="wc-stat-val">${fmtNum(w.centerPct,0)}%</div></div>
+            </div>
+        </div>
+    `).join('')}</div>`;
+}
+
+function attachCardClicks() {
+    document.querySelectorAll('.worker-card').forEach(c => {
+        c.addEventListener('click', () => openModal(c.dataset.video));
+    });
+}
+
+function sparklineSVG(w) {
+    const W = 320, H = 38;
+    if (w.frames && w.frames.length > 1) {
+        // Real per-frame focus_score sparkline (downsampled to ~80 points)
+        const pts = w.frames;
+        const N = Math.min(pts.length, 100);
+        const step = Math.max(1, Math.floor(pts.length / N));
+        const sampled = [];
+        for (let i = 0; i < pts.length; i += step) sampled.push(pts[i]);
+        const ys = sampled.map(p => p.focus_score);
+        const yMin = Math.min(...ys), yMax = Math.max(...ys);
+        const range = yMax - yMin || 1e-6;
+        const poly = sampled.map((p, i) => {
+            const x = (i / (sampled.length - 1)) * W;
+            const y = H - 4 - ((p.focus_score - yMin) / range) * (H - 8);
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+        return `<svg class="wc-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+            <polyline points="${poly}" fill="none" stroke="${TASK_COLORS[w.task]}" stroke-width="1.5" stroke-linejoin="round"/>
+        </svg>`;
+    }
+    // Fallback: synthesize a faint pulse from cycle pace so the card isn't empty
+    const cd = w.cycleDur || 30;
+    const pts = [];
+    for (let i = 0; i < 60; i++) {
+        const t = i / 60;
+        const v = 0.4 + 0.4 * Math.abs(Math.sin(t * Math.PI * (cd > 30 ? 2 : 4)));
+        pts.push(`${(t * W).toFixed(1)},${(H - 4 - v * (H - 8)).toFixed(1)}`);
+    }
+    return `<svg class="wc-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <polyline points="${pts.join(' ')}" fill="none" stroke="${TASK_COLORS[w.task]}" stroke-width="1" stroke-opacity="0.35" stroke-dasharray="2 2"/>
+        <text x="${W/2}" y="${H/2 + 3}" text-anchor="middle" font-size="9" fill="#444" font-family="monospace">no per-frame data</text>
+    </svg>`;
+}
+
+// =====================================================================
+// Insights
+// =====================================================================
+function renderInsights() {
+    const items = [];
+
+    // Fastest production worker
+    const prod = WORKERS.filter(w => w.task === 'production' && w.cycleDur > 0);
+    if (prod.length) {
+        const fastest = prod.reduce((a, b) => (a.cycleDur < b.cycleDur ? a : b));
+        const slowest = prod.reduce((a, b) => (a.cycleDur > b.cycleDur ? a : b));
+        items.push({ cls: 'good', html: `<strong>Fastest pace:</strong> ${fastest.workerId} averages <strong>${fmtNum(fastest.cycleDur,1)}s</strong> per cycle (${fastest.cycles} cycles total).` });
+        if (slowest.videoName !== fastest.videoName) {
+            items.push({ cls: '', html: `<strong>Slowest pace:</strong> ${slowest.workerId} averages ${fmtNum(slowest.cycleDur,1)}s per cycle — ${fmtNum(slowest.cycleDur/fastest.cycleDur,1)}× slower than ${fastest.workerId}.` });
+        }
+    }
+
+    // Highest center bias (likely idle/transit)
+    const byCenter = [...WORKERS].sort((a, b) => b.centerPct - a.centerPct);
+    if (byCenter.length) {
+        const top = byCenter[0];
+        items.push({ cls: 'warn', html: `<strong>Most passive gaze:</strong> ${top.workerId} (${top.taskDesc}) — ${fmtNum(top.centerPct,1)}% center bias, gaze speed ${fmtNum(top.speedAvg,3)}.` });
+    }
+
+    // Most active scanner
+    const byActive = [...WORKERS].sort((a, b) => b.speedAvg - a.speedAvg);
+    if (byActive.length) {
+        const top = byActive[0];
+        items.push({ cls: 'good', html: `<strong>Most active scanning:</strong> ${top.workerId} sustained gaze speed of <strong>${fmtNum(top.speedAvg,3)}</strong> over ${fmtDuration(top.duration)}.` });
+    }
+
+    // Highest focus
+    const byFocus = [...WORKERS].sort((a, b) => b.focusMean - a.focusMean);
+    if (byFocus.length) {
+        const top = byFocus[0];
+        items.push({ cls: '', html: `<strong>Highest focus score:</strong> ${top.workerId} at ${fmtNum(top.focusMean,4)} (max ${fmtNum(top.focusMax,4)}).` });
+    }
+
+    // Production cohort throughput
+    if (SITE.prodCount > 0) {
+        const prodCycles = WORKERS.filter(w => w.task === 'production').reduce((a, w) => a + w.cycles, 0);
+        const prodHours = WORKERS.filter(w => w.task === 'production').reduce((a, w) => a + w.duration, 0) / 3600;
+        const cphPerWorker = prodHours > 0 ? prodCycles / prodHours / SITE.prodCount : 0;
+        items.push({ cls: '', html: `<strong>Production cohort:</strong> ${SITE.prodCount} workers logged <strong>${prodCycles}</strong> cycles in ${fmtDuration(prodHours * 3600)} — ${fmtNum(cphPerWorker, 1)} cycles/hour per worker.` });
+    }
+
+    // Idle/transit time share
+    const nonProd = WORKERS.filter(w => w.task === 'transit' || w.task === 'downtime').reduce((a, w) => a + w.duration, 0);
+    if (nonProd > 0 && SITE.totalDur > 0) {
+        const pct = nonProd / SITE.totalDur * 100;
+        const cls = pct > 25 ? 'warn' : '';
+        items.push({ cls, html: `<strong>Non-productive time:</strong> ${fmtNum(pct,1)}% of total session was transit or downtime (${fmtDuration(nonProd)}).` });
+    }
+
+    // Cycle duration variance (operator consistency)
+    if (prod.length > 1) {
+        const paces = prod.map(w => w.cycleDur);
+        const mean = paces.reduce((a, b) => a + b, 0) / paces.length;
+        const variance = paces.reduce((a, b) => a + (b - mean) ** 2, 0) / paces.length;
+        const std = Math.sqrt(variance);
+        const cv = (std / mean) * 100;
+        const cls = cv > 50 ? 'warn' : 'good';
+        items.push({ cls, html: `<strong>Pace consistency:</strong> production cycle pace varies by ${fmtNum(cv, 1)}% across workers (CV) — ${cv > 50 ? 'high spread, training opportunity' : 'good consistency'}.` });
+    }
+
+    return `<div class="insight-list">${items.map(i => `<div class="insight-item ${i.cls}">${i.html}</div>`).join('')}</div>`;
+}
+
+// =====================================================================
+// Modal drill-down
+// =====================================================================
+function openModal(videoName) {
+    const w = WORKERS.find(x => x.videoName === videoName);
+    if (!w) return;
+
+    const totalRegion = Math.max(1, Object.values(w.regionPref).reduce((a, b) => a + b, 0));
+    const regionRows = ['CENTER', 'TL', 'TR', 'BL', 'BR'].map(k => ({
+        key: k, val: w.regionPref[k] || 0, pct: (w.regionPref[k] || 0) / totalRegion * 100,
+    }));
+    const regionMax = Math.max(...regionRows.map(r => r.pct), 1);
+
+    const cyclesHtml = w.cyclesArr.length
+        ? w.cyclesArr.slice(0, 200).map((c, i) => `
+            <div class="cycle-row">
+                <div class="idx">#${i + 1}</div>
+                <div>${fmtNum(c.start_time, 1)}s → ${fmtNum(c.end_time, 1)}s</div>
+                <div style="color:#666">anchor (${fmtNum(c.anchor_x, 2)}, ${fmtNum(c.anchor_y, 2)})</div>
+                <div class="dur">${fmtNum(c.duration_s, 1)}s</div>
+            </div>
+        `).join('')
+        : `<div class="cycle-row"><div style="color:#555">No cycles detected</div></div>`;
+
+    document.getElementById('modalBody').innerHTML = `
+        <div class="modal-head">
+            <div>
+                <div class="modal-title">${w.workerId} <span style="color:#555;font-weight:400;font-size:12px;margin-left:10px">${w.videoName}</span></div>
+                <div class="modal-sub">${w.taskDesc} · <span style="color:${TASK_COLORS[w.task]}">${statusFromTask(w.task)}</span> · ${fmtDuration(w.duration)} · ${w.framesAnalyzed} frames analyzed</div>
+            </div>
+            <button class="modal-close" onclick="closeModal()">Close · Esc</button>
+        </div>
+
+        <div class="modal-stats">
+            <div class="modal-stat"><div class="lbl">Cycles</div><div class="val">${w.cycles}</div></div>
+            <div class="modal-stat"><div class="lbl">Pace</div><div class="val">${w.cycleDur ? fmtNum(w.cycleDur,1) : '—'}<span class="u">s</span></div></div>
+            <div class="modal-stat"><div class="lbl">Gaze Speed</div><div class="val">${fmtNum(w.speedAvg,3)}<span class="u">avg</span></div></div>
+            <div class="modal-stat"><div class="lbl">Focus</div><div class="val">${fmtNum(w.focusMean,4)}</div></div>
+            <div class="modal-stat"><div class="lbl">Center Bias</div><div class="val">${fmtNum(w.centerPct,1)}<span class="u">%</span></div></div>
+        </div>
+
+        <div class="modal-section">
+            <h4>Focus Over Time + Segment Ribbon</h4>
+            ${timelineSVG(w)}
+        </div>
+
+        <div class="modal-grid">
+            <div class="modal-section">
+                <h4>Region Preference</h4>
+                <div class="region-bars">
+                    ${regionRows.map(r => `
+                        <div class="bar-row">
+                            <div class="bar-label">${r.key}</div>
+                            <div class="bar-track"><div class="bar-fill" style="width:${(r.pct/regionMax*100)}%;background:${REGION_COLORS[r.key]}"></div></div>
+                            <div class="bar-val">${fmtNum(r.pct,1)}%</div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <h4 style="margin-top:18px">Gaze Speed Range</h4>
+                <div class="bar-row">
+                    <div class="bar-label">Avg</div>
+                    <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, w.speedAvg/1.0*100)}%;background:#3b82f6"></div></div>
+                    <div class="bar-val">${fmtNum(w.speedAvg,3)}</div>
+                </div>
+                <div class="bar-row">
+                    <div class="bar-label">Max</div>
+                    <div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, w.speedMax/1.5*100)}%;background:#8b5cf6"></div></div>
+                    <div class="bar-val">${fmtNum(w.speedMax,3)}</div>
+                </div>
+
+                <h4 style="margin-top:18px">Coverage</h4>
+                <div class="bar-row">
+                    <div class="bar-label">x-range</div>
+                    <div class="bar-track"><div class="bar-fill" style="width:${(DATA[w.videoName].summary.gaze_coverage?.x_range || 0)*100}%;background:#22c55e"></div></div>
+                    <div class="bar-val">${fmtNum((DATA[w.videoName].summary.gaze_coverage?.x_range || 0),2)}</div>
+                </div>
+                <div class="bar-row">
+                    <div class="bar-label">y-range</div>
+                    <div class="bar-track"><div class="bar-fill" style="width:${(DATA[w.videoName].summary.gaze_coverage?.y_range || 0)*100}%;background:#22c55e"></div></div>
+                    <div class="bar-val">${fmtNum((DATA[w.videoName].summary.gaze_coverage?.y_range || 0),2)}</div>
+                </div>
+            </div>
+
+            <div class="modal-section">
+                <h4>Cycle Log (${w.cyclesArr.length} cycles)</h4>
+                <div class="cycles-list">${cyclesHtml}</div>
+            </div>
+        </div>
+
+        <div class="modal-section">
+            <h4>Insight</h4>
+            <div class="insight-item">${workerInsight(w)}</div>
+        </div>
+    `;
+    document.getElementById('modal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function workerInsight(w) {
+    const parts = [];
+    if (w.task === 'production') {
+        if (w.cycleDur < 20) parts.push(`<strong>Fast cycles (${fmtNum(w.cycleDur,1)}s)</strong> — repetitive production work like masonry block-laying.`);
+        else if (w.cycleDur < 60) parts.push(`<strong>Medium cycles (${fmtNum(w.cycleDur,1)}s)</strong> — moderate-complexity tasks.`);
+        else parts.push(`<strong>Long cycles (${fmtNum(w.cycleDur,1)}s)</strong> — multi-step mechanical/plumbing work.`);
+    } else if (w.task === 'prep') {
+        parts.push(`<strong>Preparation phase</strong> — gathering materials, surveying work area.`);
+    } else if (w.task === 'transit') {
+        parts.push(`<strong>Worker in transit</strong> between work areas — high center bias and forward gaze.`);
+    } else if (w.task === 'downtime') {
+        parts.push(`<strong>Idle period</strong> — minimal eye movement, low engagement detected.`);
+    }
+    if (w.centerPct > 65) parts.push(`Center bias <strong>${fmtNum(w.centerPct,1)}%</strong> indicates passive forward gaze.`);
+    else if (w.centerPct < 50) parts.push(`Center bias <strong>${fmtNum(w.centerPct,1)}%</strong> — actively scanning workspace.`);
+    if (w.speedAvg > 0.4) parts.push(`Gaze speed <strong>${fmtNum(w.speedAvg,3)}</strong> — active visual sampling.`);
+    else if (w.speedAvg < 0.32) parts.push(`Gaze speed <strong>${fmtNum(w.speedAvg,3)}</strong> — slow/stationary gaze.`);
+    return parts.join(' ');
+}
+
+// Timeline: focus_score line + segment ribbon below
+function timelineSVG(w) {
+    const W = 1000, H = 160, PAD_L = 36, PAD_R = 8, PAD_T = 8, PAD_B = 32;
+    const PLOT_W = W - PAD_L - PAD_R;
+    const PLOT_H = H - PAD_T - PAD_B - 18; // leave 18 px for ribbon
+    const RIBBON_Y = PAD_T + PLOT_H + 4;
+    const RIBBON_H = 14;
+
+    const dur = Math.max(1, w.duration);
+    const xAt = t => PAD_L + (t / dur) * PLOT_W;
+
+    // Focus polyline (from per-frame data if present)
+    let focusPath = '';
+    let yMin = 0, yMax = 1;
+    if (w.frames && w.frames.length > 1) {
+        const ys = w.frames.map(p => p.focus_score);
+        yMin = Math.min(...ys); yMax = Math.max(...ys);
+        const range = yMax - yMin || 1e-6;
+        const yAt = v => PAD_T + PLOT_H - ((v - yMin) / range) * PLOT_H;
+        // Downsample to ~600 points for cleaner draw
+        const step = Math.max(1, Math.floor(w.frames.length / 600));
+        const pts = [];
+        for (let i = 0; i < w.frames.length; i += step) {
+            pts.push(`${xAt(w.frames[i].time_s).toFixed(1)},${yAt(w.frames[i].focus_score).toFixed(1)}`);
+        }
+        focusPath = `<polyline points="${pts.join(' ')}" fill="none" stroke="${TASK_COLORS[w.task]}" stroke-width="1.2" stroke-linejoin="round"/>`;
+    }
+
+    // Segments ribbon
+    const segs = w.segmentsArr.map(s => {
+        const x1 = xAt(s.start_time), x2 = xAt(s.end_time);
+        return `<rect x="${x1}" y="${RIBBON_Y}" width="${Math.max(1, x2 - x1)}" height="${RIBBON_H}" fill="${STATE_COLORS[s.state] || '#444'}" opacity="0.85">
+            <title>${s.state} · ${fmtDuration(s.duration_s)} · avg focus ${fmtNum(s.avg_focus,4)}</title>
+        </rect>`;
+    }).join('');
+
+    // Cycle markers (small ticks on x-axis)
+    const cycleTicks = w.cyclesArr.map(c => {
+        const x = xAt(c.start_time);
+        return `<line x1="${x}" y1="${RIBBON_Y + RIBBON_H + 2}" x2="${x}" y2="${RIBBON_Y + RIBBON_H + 8}" stroke="${TASK_COLORS[w.task]}" stroke-width="1" opacity="0.6"/>`;
+    }).join('');
+
+    // Time axis labels (5 ticks)
+    const ticks = [];
+    for (let i = 0; i <= 5; i++) {
+        const t = (dur * i) / 5;
+        const x = xAt(t);
+        ticks.push(`<text x="${x}" y="${H - 4}" text-anchor="middle" font-size="9" fill="#555" font-family="monospace">${fmtDuration(t)}</text>`);
+    }
+
+    // Y axis (focus min/max if available)
+    const yAxis = w.frames && w.frames.length
+        ? `<text x="4" y="${PAD_T + 8}" font-size="9" fill="#555" font-family="monospace">${fmtNum(yMax,4)}</text>
+           <text x="4" y="${PAD_T + PLOT_H}" font-size="9" fill="#555" font-family="monospace">${fmtNum(yMin,4)}</text>
+           <text x="4" y="${PAD_T + PLOT_H/2 + 3}" font-size="8" fill="#444" font-family="monospace" transform="rotate(-90 8 ${PAD_T + PLOT_H/2 + 3})">focus</text>`
+        : `<text x="${PAD_L + PLOT_W/2}" y="${PAD_T + PLOT_H/2}" text-anchor="middle" font-size="11" fill="#444" font-family="monospace">No per-frame data — re-run analyze_ironsite.py to enable focus timeline</text>`;
+
+    return `<svg class="timeline" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:160px;width:100%">
+        <rect x="${PAD_L}" y="${PAD_T}" width="${PLOT_W}" height="${PLOT_H}" fill="#0a0a0a" stroke="#1a1a1a"/>
+        ${yAxis}
+        ${focusPath}
+        ${segs}
+        ${cycleTicks}
+        ${ticks.join('')}
+    </svg>
+    <div style="display:flex;gap:18px;font-size:10px;color:#666;margin-top:6px;flex-wrap:wrap">
+        <span><span style="display:inline-block;width:10px;height:10px;background:${STATE_COLORS.focused};margin-right:4px;vertical-align:middle"></span>focused</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:${STATE_COLORS.moderate};margin-right:4px;vertical-align:middle"></span>moderate</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:${STATE_COLORS.diffuse};margin-right:4px;vertical-align:middle"></span>diffuse</span>
+        <span><span style="display:inline-block;width:2px;height:10px;background:${TASK_COLORS[w.task]};margin-right:4px;vertical-align:middle"></span>cycle start</span>
+    </div>`;
+}
+
+// =====================================================================
+// Init
+// =====================================================================
+function updateClock() {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US',{hour12:false}) + '  ' + new Date().toLocaleDateString('en-US');
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+load();
+</script>
+</body>
+</html>

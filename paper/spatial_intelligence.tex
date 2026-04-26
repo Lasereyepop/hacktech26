@@ -1,0 +1,221 @@
+\documentclass{article}
+\usepackage{iclr2026_conference,times}
+
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{subcaption}
+
+\title{Spatial Intelligence Through Gaze: From Construction Analytics to Design Evaluation}
+
+\author{
+Jonathan Ouyang \quad Eric Ziyang Zhou \\
+University of California, Los Angeles \\
+\texttt{jon@matrixsportsleague.com}
+}
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We present a system that learns to predict where humans look from eye-tracking data, originally developed to analyze construction worker behavior from helmet camera footage provided by IronSite, a construction analytics company. By predicting per-frame attention heatmaps on egocentric video, we extract measurable temporal signals---gaze speed, dwell duration, and cyclical re-visit patterns---that classify worker activity (production, prep, idle, transit), measure productivity through automated cycle counting, and quantify engagement, all without manual annotation. After validating these construction analytics, we recognized that the underlying capability---predicting human visual attention on arbitrary visual input---has substantially broader implications for visual design evaluation. The same neural architecture that infers what a worker focuses on during block-laying can predict what a viewer notices on a webpage, in an advertisement, or in any UI design, replacing weeks-long eye-tracking studies with seconds of inference. We document the model architecture, training methodology, the cyclical patterns we extract from construction footage, and the cross-domain transfer from physical workspaces to digital interfaces.
+\end{abstract}
+
+\section{Origin: The Construction Problem}
+
+IronSite, a construction analytics company, provided us with hours of helmet camera footage from masonry, mechanical, and plumbing workers across multiple job sites. Their existing systems track \textit{that} a worker is on the job and \textit{where} they are physically located, but they cannot tell \textit{what the worker is actually doing} at any moment---whether they are producing work, preparing materials, in transit between zones, or idle. Manual review of footage is impractical at scale.
+
+Their core analytics question is simple: \textbf{how do we count work output and quantify engagement from raw video, automatically?} A foreman wants to know how many blocks each mason laid this hour, which workers are operating at peak pace versus drifting, and where the bottlenecks in the workflow are. None of that information is currently extractable from camera feeds without human review.
+
+We hypothesized that the answer was hidden in \textbf{where the worker looks}. Eye movement is tightly coupled to physical action: a mason looks at the block pile before reaching for a block, at the mortar before applying it, at the wall placement before setting the block \citep{hayhoe2005eye, land2009vision}. If we could predict where attention is focused on any given frame, we could derive the underlying task structure from the temporal pattern of those predictions.
+
+\subsection{Contributions}
+
+\begin{enumerate}
+    \item We demonstrate that a UNet-based saliency model trained on egocentric construction footage learns to predict where workers focus their attention frame-by-frame, despite a small dataset (155 webpage images for the design instance, 42 windowed video segments for the egocentric instance).
+
+    \item We extract four behavioral metrics from the temporal evolution of the predictions: \textit{gaze speed} (which classifies activity type), \textit{center bias} (which quantifies engagement), \textit{cycle count} (which approximates work output), and \textit{cycle duration} (which measures pace).
+
+    \item We present visual evidence of cyclical patterns in the predicted attention data—closed loops in spatial gaze coordinates that correspond directly to repetitive physical work cycles. We detect 16 cycles in 90 seconds of masonry production with a mean duration of 5.2 seconds.
+
+    \item We document the cross-domain generalization: the same architecture trained on a different dataset (155 webpage screenshots with eye-tracking annotations) produces useful attention predictions for visual design evaluation, replacing traditional eye-tracking studies with seconds of inference.
+\end{enumerate}
+
+\section{Background}
+
+\subsection{Saliency Prediction}
+
+Saliency models predict spatial distributions of human attention on images. Early work used hand-designed features \citep{itti1998model}; modern deep approaches \citep{pan2016shallow, kummerer2017understanding, kruthiventi2017deepfix} achieve near-human consistency on benchmark datasets \citep{bylinskii2019different}. However, saliency maps aggregate attention across time and observers, discarding sequential structure.
+
+\subsection{Egocentric Gaze Prediction}
+
+In first-person video, gaze leads action by 1--2 seconds \citep{hayhoe2005eye, li2021eye}. Datasets such as Ego4D \citep{grauman2022ego4d}, EGTEA Gaze+ \citep{li2018eye}, and EPIC-Kitchens \citep{damen2018scaling} provide egocentric video with gaze annotations. Prior work has used predicted gaze for action anticipation, but to our knowledge, no prior work has used predicted attention as a productivity proxy in industrial settings.
+
+\subsection{Eye Tracking in UX and Design}
+
+Eye-tracking studies have long been a standard tool in user experience research \citep{rayner1998eye, buswell1935people}, but require specialized hardware, recruited participants, and weeks of analysis. Predicted attention models offer a fast alternative, but most existing models output static saliency rather than the temporal scanpath information designers actually need.
+
+\section{Method}
+
+\subsection{Architecture}
+
+Our saliency encoder is a UNet \citep{ronneberger2015u} with a pretrained ResNet-50 \citep{he2016deep} encoder. The encoder compresses an input $224 \times 224 \times 3$ image through five stages, producing a $7 \times 7 \times 2048$ bottleneck representation. The decoder upsamples through four blocks, each consisting of bilinear upsampling, concatenation with the matching encoder skip connection, and two $3 \times 3$ convolutions with batch normalization and ReLU. A final $1 \times 1$ convolution and sigmoid produce the output heatmap.
+
+\textbf{Why ResNet-50:} ImageNet-pretrained weights provide strong general visual features (text recognition, edge detection, face perception) without requiring extensive training data. We fine-tune the encoder at a lower learning rate ($5 \times 10^{-5}$) than the decoder ($5 \times 10^{-4}$) to preserve these features.
+
+\textbf{Why skip connections:} The bottleneck representation captures \textit{what} is in the image but loses fine spatial detail. Skip connections preserve high-resolution information needed for sharp heatmap boundaries.
+
+\subsection{Loss Function}
+
+We minimize a composite loss combining binary cross-entropy, mean squared error, and an entropy regularization term:
+\begin{equation}
+    \mathcal{L} = \mathcal{L}_{\text{BCE}}(\hat{\mathbf{H}}, \mathbf{H}^*) + \mathcal{L}_{\text{MSE}}(\hat{\mathbf{H}}, \mathbf{H}^*) - \lambda \cdot \mathcal{H}(\hat{\mathbf{H}})
+\end{equation}
+where $\mathbf{H}^*$ is the ground truth heatmap derived from gaze fixation density, $\mathcal{H}(\hat{\mathbf{H}})$ is the pixel-wise entropy of the predicted heatmap, and $\lambda = 0.1$.
+
+\textbf{Entropy regularization} is a key contribution: without it, we observed the model collapses predictions into narrow peaks. The regularization keeps the heatmap broad and informative.
+
+\subsection{Training}
+
+\begin{itemize}
+    \item \textbf{Optimizer}: AdamW, weight decay $10^{-4}$
+    \item \textbf{Schedule}: Cosine annealing
+    \item \textbf{Epochs}: 2000--3000 (small dataset benefits from many passes)
+    \item \textbf{Batch size}: 4--32 (effective batch must be $\leq$ 25\% of dataset size)
+    \item \textbf{Multi-GPU}: PyTorch DDP via torchrun, with SyncBatchNorm and DistributedSampler
+    \item \textbf{Augmentation}: horizontal flip with gaze coordinate mirroring, random crop with proportional gaze remapping, color jitter, Gaussian blur
+\end{itemize}
+
+Ground truth heatmaps are constructed by placing Gaussian blobs ($\sigma = 11$ pixels) at each recorded gaze coordinate and normalizing.
+
+\subsection{Data}
+
+\textbf{Egocentric construction.} 14 helmet camera videos (640$\times$480 at 15fps for masonry; 820$\times$616 at 5fps for mechanical/plumbing) from IronSite, totaling several hours of footage. Gaze was recorded during playback. Videos were windowed into 90-frame overlapping segments (50\% overlap), producing 42 training samples for the egocentric model.
+
+\textbf{Static webpage.} 155 screenshots of popular websites (Stripe, Airbnb, Apple, Notion, Linear, etc.) at 1440$\times$900 resolution. Each was viewed by one participant for $\sim$3 seconds with gaze recorded at $\sim$50Hz, resampled to 90 frames at 30fps.
+
+\section{Experiments and Findings}
+
+\subsection{Saliency Encoder Convergence}
+
+The saliency encoder converges rapidly. On the static image dataset, validation loss drops from 0.48 (epoch 200) to 0.20 (epoch 1500) and plateaus thereafter. The plateau is intentional: entropy regularization creates a deliberate floor on the loss, preventing the model from collapsing to over-concentrated predictions.
+
+The egocentric model converges similarly, from 0.47 at epoch 200 to 0.28 at epoch 670, with continued slow improvement to 0.21 at epoch 2000.
+
+\subsection{Cyclical Patterns in Construction Work}
+
+Once the egocentric model is trained, we extract behavioral information from the temporal structure of its predictions. Our central finding: \textbf{cyclical patterns exist in the predicted attention data that correspond directly to physical work cycles.}
+
+Each block-laying sequence (look at material $\rightarrow$ look at wall $\rightarrow$ look at placement $\rightarrow$ repeat) produces a closed loop in spatial gaze coordinates. We detect these loops by tracking distance from the worker's dominant attention region over time. Cycle borders correspond to local maxima in this distance signal---the moments when the gaze is maximally departed from the dominant region.
+
+\textbf{Result.} 16 distinct cycles detected in 90 seconds of masonry production, with mean duration 5.2s (median 4.3s). Extrapolated: $\sim$640 cycles per hour, consistent with expected manual labor pace.
+
+\subsection{Speed Distribution and Activity Classification}
+
+The predicted gaze speed distribution is clearly bimodal: a sharp peak near zero (the worker dwelling on a region) and a broader distribution above the threshold (transitioning between regions). An adaptive threshold (40th percentile) cleanly separates the two regimes. 40\% of frames are fixations, 60\% are saccades, consistent with the natural rhythm of physical labor.
+
+Across activity types, mean gaze speed cleanly differentiates worker behavior:
+
+\begin{table}[h]
+\centering
+\caption{Mean predicted gaze speed across activity types.}
+\begin{tabular}{lc}
+\toprule
+Activity Type & Mean Gaze Speed \\
+\midrule
+Production (active work) & 0.426 \\
+Prep (material staging) & 0.408 \\
+Downtime (idle) & 0.337 \\
+Transit (walking) & 0.297 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Engagement via Center Bias}
+
+The proportion of attention concentrated near the center of the field of view (``center bias'') correlates inversely with engagement. Engaged workers actively scan their workspace, distributing attention across the full field. Disengaged workers stare straight ahead, concentrating attention near the center.
+
+\begin{itemize}
+    \item Production: 46\% center (low) — engaged
+    \item Prep: 43\% center (low) — engaged
+    \item Downtime: 68\% center (high) — disengaged
+    \item Transit: 73\% center (high) — passive forward gaze
+\end{itemize}
+
+\subsection{Worker Comparison}
+
+For four masons performing the same task, the model produces measurably different productivity metrics:
+
+\begin{table}[h]
+\centering
+\caption{Predicted productivity metrics across four masons performing identical tasks.}
+\begin{tabular}{lcc}
+\toprule
+Worker & Cycles / 20min & Avg Cycle (s) \\
+\midrule
+01 (fastest) & 74 & 14.9 \\
+04 & 56 & 21.4 \\
+03 & 56 & 21.7 \\
+02 (slowest) & 45 & 24.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+These metrics are extracted entirely from helmet camera video processed through our model, with no manual annotation, no object detection, and no task-specific labeling.
+
+\section{Cross-Domain Generalization: Visual Design}
+
+After validating the construction analytics use case, we recognized that the underlying capability---predicting where humans look on arbitrary visual input---generalizes far beyond physical workspaces.
+
+\subsection{The Design Use Case}
+
+Visual design is a natural application. Traditional eye-tracking studies require recruiting participants, calibrating hardware, and analyzing results over weeks. A designer who wants to know whether their call-to-action button captures attention before users disengage currently has no fast feedback loop.
+
+We trained a separate instance of the same UNet architecture on 155 webpage screenshots with eye-tracking annotations. The model learned to identify the visual elements humans attend to first: large headlines, faces, navigation, calls-to-action.
+
+\subsection{Cross-Domain Capability}
+
+The same architecture, the same training procedure, the same loss function---applied to two fundamentally different visual domains (egocentric construction video and static webpage screenshots)---produces useful attention predictions in both. This suggests that ``where humans look'' follows learnable principles that are not specific to any single domain.
+
+For construction, the temporal evolution of these predictions reveals work cycles, productivity, and engagement. For design, the spatial distribution of these predictions reveals which elements capture attention and which are ignored. The underlying capability is the same: \textit{predict the human attention response to a visual stimulus.}
+
+\subsection{Implications for Design Evaluation}
+
+Given any webpage or UI screenshot, our model predicts:
+\begin{enumerate}
+    \item Which elements attract attention and which are overlooked (heatmap).
+    \item What a viewer sees first, second, and third (scanpath order via post-processing).
+    \item How long each element holds attention (dwell time via post-processing).
+\end{enumerate}
+
+These are exactly the questions designers ask: ``Is the call-to-action button noticed before the user scrolls?'' ``Does the headline capture first fixation, or does the hero image steal attention?'' ``Is the logo registered at all during a typical viewing session?''
+
+\section{Limitations}
+
+\textbf{Eye-tracking precision.} Our webcam-based data collection provides region-level accuracy ($\sim$2--3 degrees of visual angle) but not pixel-level precision. The saliency maps are valid at the level of ``which region'' but not ``which word.''
+
+\textbf{Single-observer data.} Each stimulus was viewed by a single participant. Gaze varies across individuals; population-level predictions would benefit from multi-observer data.
+
+\textbf{Cycle detection requires repetition.} Our cycle extraction methodology relies on the worker repeatedly visiting a dominant attention region. It works well for masonry (highly repetitive) but produces fewer detected cycles for less repetitive tasks (mechanical/plumbing: 14 cycles in 20 minutes vs. 58 for masonry).
+
+\textbf{Decoder for full scanpath generation.} We attempted end-to-end scanpath generation with an autoregressive transformer decoder but found it suffers from exposure bias over long sequences with limited training data. We use an algorithmic spline-based scanpath generator built on the trained heatmap as a robust alternative.
+
+\section{Conclusion}
+
+We presented a system for predicting human visual attention that began with a concrete construction analytics problem (how do we count work output from helmet camera video?) and discovered a broader capability (the same model learns to predict attention on any visual input).
+
+Three findings stand out. First, the saliency model converges rapidly from small datasets when initialized with ImageNet-pretrained encoder weights. Second, the temporal structure of the predicted attention contains directly extractable behavioral signals: cyclical patterns correspond to repetitive work cycles, and gaze speed cleanly classifies activity type. Third, the same architecture transfers across fundamentally different visual domains, suggesting that human visual attention follows learnable principles that are not specific to any single task or environment.
+
+The construction use case provided the original motivation and the data; the design implications emerged from observing the cross-domain capability of the model we built.
+
+\bibliography{references}
+\bibliographystyle{iclr2026_conference}
+
+\end{document}

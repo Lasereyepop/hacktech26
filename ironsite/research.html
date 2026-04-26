@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IronSite — Research</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; height: 100vh; overflow-y: auto; }
+
+.header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #111; border-bottom: 1px solid #222; height: 52px; position: sticky; top: 0; z-index: 100; }
+.header-left { display: flex; align-items: center; gap: 16px; }
+.logo { font-size: 14px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #fff; }
+.logo span { color: #666; font-weight: 400; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.header-right { display: flex; align-items: center; gap: 20px; }
+.timestamp { font-size: 11px; color: #666; }
+.tabs { display: flex; gap: 2px; background: #1a1a1a; border-radius: 4px; padding: 2px; }
+.tab { padding: 5px 14px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #666; text-decoration: none; border-radius: 3px; transition: all 0.2s; }
+.tab:hover { color: #aaa; }
+.tab.active { background: #2a2a2a; color: #fff; }
+
+.content { max-width: 880px; margin: 0 auto; padding: 56px 32px 120px; }
+
+.paper-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.3;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+}
+
+.paper-authors { font-size: 12px; color: #888; margin-bottom: 6px; }
+.paper-affiliation { font-size: 11px; color: #555; margin-bottom: 40px; }
+
+.section-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #3b82f6;
+    margin-bottom: 14px;
+    margin-top: 56px;
+}
+
+.section-label:first-of-type { margin-top: 0; }
+
+.abstract-text {
+    font-size: 13px;
+    line-height: 1.85;
+    color: #bbb;
+    margin-bottom: 32px;
+}
+
+.body-text {
+    font-size: 13px;
+    line-height: 1.85;
+    color: #aaa;
+    margin-bottom: 18px;
+}
+
+.body-text strong { color: #e0e0e0; }
+.body-text em { color: #ccc; font-style: normal; }
+
+.figure-caption {
+    font-size: 11px;
+    color: #666;
+    line-height: 1.7;
+    margin: 8px 0 28px;
+    text-align: left;
+}
+
+.figure-caption strong { color: #3b82f6; font-weight: 700; }
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin: 28px 0;
+}
+
+.detail-card h4 {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 6px;
+}
+
+.detail-card .val {
+    font-size: 22px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 6px;
+}
+
+.detail-card .val.blue { color: #3b82f6; }
+
+.detail-card p {
+    font-size: 12px;
+    line-height: 1.6;
+    color: #888;
+}
+
+.layer-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0 28px;
+    font-size: 12px;
+}
+
+.layer-table th {
+    text-align: left;
+    padding: 8px 12px 8px 0;
+    border-bottom: 1px solid #222;
+    color: #666;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.layer-table td {
+    padding: 9px 12px 9px 0;
+    border-bottom: 1px solid #1a1a1a;
+    color: #aaa;
+    line-height: 1.5;
+}
+
+.layer-table td:first-child { color: #ccc; font-weight: 600; }
+
+.loss-eq {
+    margin: 18px 0 28px;
+    text-align: center;
+    font-size: 16px;
+    color: #ccc;
+    letter-spacing: 0.5px;
+}
+
+.loss-eq .term { color: #3b82f6; font-weight: 600; }
+.loss-eq .op { color: #555; padding: 0 8px; }
+.loss-eq .note { display: block; font-size: 11px; color: #555; margin-top: 10px; letter-spacing: 1px; text-transform: uppercase; }
+
+.video-slot {
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    background: #000;
+    margin-bottom: 6px;
+}
+
+.video-slot video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-caption {
+    font-size: 10px;
+    color: #555;
+    text-align: center;
+    margin-bottom: 24px;
+    letter-spacing: 0.5px;
+}
+
+.video-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 20px 0;
+}
+
+.divider {
+    height: 1px;
+    background: #1a1a1a;
+    margin: 56px 0;
+}
+
+img.figure {
+    width: 100%;
+    margin-top: 20px;
+}
+
+.full-img {
+    width: 100%;
+    margin: 16px 0 6px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <div class="status-dot"></div>
+        <div class="logo">IRONSITE <span>Spatial Intelligence</span></div>
+        <div class="tabs">
+            <a class="tab" href="index.html">Cameras</a>
+            <a class="tab active" href="research.html">Research</a>
+            <a class="tab" href="site.html">Site View</a>
+            <a class="tab" href="analytics.html">Analytics</a>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="timestamp" id="clock"></div>
+    </div>
+</div>
+
+<div class="content">
+
+    <div class="paper-title">Spatial Intelligence Through Gaze: From Construction Analytics to Design Evaluation</div>
+    <div class="paper-authors">Jonathan Ouyang &middot; Eric Ziyang Zhou</div>
+    <div class="paper-affiliation">University of California, Los Angeles &middot; LA Hacks 2026</div>
+
+    <div class="section-label">Abstract</div>
+    <div class="abstract-text">
+        We present a system that learns to predict where humans look from eye-tracking data, originally developed to analyze construction worker behavior from helmet camera footage provided by IronSite. By predicting per-frame attention heatmaps on egocentric video, we extract measurable temporal signals — gaze speed, dwell duration, and cyclical re-visit patterns — that classify worker activity (production, prep, idle, transit), measure productivity through automated cycle counting, and quantify engagement, all without manual annotation. After validating these construction analytics, we discovered the underlying capability — predicting human visual attention on arbitrary visual input — has substantially broader implications for design evaluation. The same neural architecture that infers what a worker focuses on during block-laying can predict what a viewer notices on a webpage, in an advertisement, or in any UI design, replacing weeks-long eye-tracking studies with seconds of inference. We document the model architecture, training methodology, the cyclical patterns we extract from construction footage, and the cross-domain transfer from physical workspaces to digital interfaces.
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">1. Origin — The Construction Problem</div>
+
+    <div class="body-text">
+        IronSite, a construction analytics company, provided us with hours of helmet camera footage from masonry, mechanical, and plumbing workers across multiple job sites. Their existing systems track <em>that</em> a worker is on the job and <em>where</em> they are physically located, but they cannot tell <em>what the worker is actually doing</em> at any moment — whether they are producing work, preparing materials, in transit between zones, or idle. Manual review of footage is impractical at scale.
+    </div>
+
+    <div class="body-text">
+        Their core analytics question is simple: <strong>how do we count work output and quantify engagement from raw video, automatically?</strong> A foreman wants to know how many blocks each mason laid this hour, which workers are operating at peak pace versus drifting, and where the bottlenecks in the workflow are. None of that information is currently extractable from the camera feeds without human review.
+    </div>
+
+    <div class="body-text">
+        We hypothesized that the answer was hidden in <strong>where the worker looks</strong>. Eye movement is tightly coupled to physical action: a mason looks at the block pile before reaching for a block, at the mortar before applying it, at the wall placement before setting the block. If we could predict where attention is focused on any given frame, we could derive the underlying task structure from the temporal pattern of those predictions.
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">2. Architecture</div>
+
+    <div class="body-text">
+        Our saliency encoder is a <strong>UNet</strong> — an encoder-decoder neural network with skip connections. The encoder compresses the input image into increasingly abstract feature representations. The decoder reconstructs a full-resolution heatmap from those compressed features. Skip connections bridge matching layers of the encoder and decoder, preserving fine spatial detail (edges, text boundaries, hand positions) that would otherwise be lost during compression.
+    </div>
+
+    <img src="public/research/architecture_diagram.jpg" class="full-img">
+    <div class="figure-caption">UNet architecture: pretrained ResNet-50 encoder (23M params) compresses the input. The decoder (8M params) reconstructs a full-resolution attention heatmap, with skip connections preserving spatial detail.</div>
+
+    <div class="body-text">
+        <strong>Why ResNet-50 as the encoder?</strong> The encoder's job is to understand what's in the image — text, faces, hands, tools, edges, colors. ResNet-50 has already learned to recognize these features from being trained on 1.2 million images (ImageNet). We reuse those learned features rather than training from scratch. The encoder weights are fine-tuned at a lower learning rate (5×10⁻⁵) to preserve the general visual understanding while adapting to gaze-specific patterns.
+    </div>
+
+    <div class="body-text">
+        <strong>Why skip connections?</strong> When the encoder compresses a 224×224 image down to 7×7, it understands <em>what</em> is in the image but loses <em>where exactly</em> those things are. Skip connections feed high-resolution encoder features directly to the decoder, so the final heatmap has sharp boundaries around salient regions rather than blurry blobs.
+    </div>
+
+    <div class="body-text">
+        <strong>Each decoder block</strong> upsamples the feature map by 2× using bilinear interpolation, concatenates the matching skip connection from the encoder, and applies two 3×3 convolution layers with batch normalization and ReLU activation. This lets the decoder combine coarse semantic features from the lower resolution with fine spatial detail from the skip connection.
+    </div>
+
+    <div class="detail-grid">
+        <div class="detail-card">
+            <h4>Total Parameters</h4>
+            <div class="val blue">53M</div>
+            <p>23M from pretrained ResNet-50 encoder, 8M from the learned decoder, 22M for the experimental transformer head.</p>
+        </div>
+        <div class="detail-card">
+            <h4>Input Resolution</h4>
+            <div class="val">224 × 224</div>
+            <p>Standard ImageNet size. Output heatmap is rescaled to any display resolution at inference.</p>
+        </div>
+        <div class="detail-card">
+            <h4>Bottleneck Size</h4>
+            <div class="val">7 × 7 × 2048</div>
+            <p>49 spatial locations, each described by a 2048-dimensional semantic feature vector.</p>
+        </div>
+        <div class="detail-card">
+            <h4>Output</h4>
+            <div class="val">224 × 224 × 1</div>
+            <p>Per-pixel saliency score in [0, 1], passed through sigmoid to ensure valid probability range.</p>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">3. Loss Function</div>
+
+    <div class="body-text">
+        The model is trained to minimize the difference between its predicted heatmap and the ground truth heatmap (derived from recorded eye-tracking data). We use a composite loss with three components:
+    </div>
+
+    <div class="loss-eq">
+        <span class="term">L</span><span class="op">=</span><span class="term">BCE</span>(pred, target)<span class="op">+</span><span class="term">MSE</span>(pred, target)<span class="op">−</span>0.1 · <span class="term">H</span>(pred)
+        <span class="note">Binary Cross-Entropy + Mean Squared Error − Entropy Regularization</span>
+    </div>
+
+    <div class="body-text">
+        <strong>BCE</strong> treats each pixel as a classification problem and heavily penalizes confident wrong predictions. <strong>MSE</strong> provides smooth gradients for accurate continuous saliency values. <strong>Entropy regularization</strong> is the key nuance — without it, the model collapses predictions into a few narrow peaks. The entropy term penalizes overly concentrated heatmaps, keeping the attention distribution broad and informative.
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">4. Training</div>
+
+    <table class="layer-table">
+        <tr><th>Parameter</th><th>Value</th><th>Why</th></tr>
+        <tr><td>Optimizer</td><td>AdamW</td><td>Weight decay prevents overfitting on small dataset</td></tr>
+        <tr><td>Learning Rate</td><td>5×10⁻⁵</td><td>Low rate preserves pretrained encoder features</td></tr>
+        <tr><td>Schedule</td><td>Cosine annealing</td><td>Smooth decay to fine-tune in later epochs</td></tr>
+        <tr><td>Weight Decay</td><td>10⁻⁴</td><td>Additional regularization for small dataset</td></tr>
+        <tr><td>Gradient Clipping</td><td>10.0</td><td>Prevents training instability</td></tr>
+        <tr><td>Epochs</td><td>2000–3000</td><td>Small dataset requires many passes</td></tr>
+        <tr><td>Batch Size</td><td>4–32</td><td>Effective batch ≤ 25% of dataset size</td></tr>
+        <tr><td>Augmentation</td><td>Flip, crop, color jitter, blur</td><td>Critical — creates training diversity</td></tr>
+        <tr><td>Multi-GPU</td><td>PyTorch DDP (torchrun)</td><td>SyncBatchNorm + DistributedSampler</td></tr>
+    </table>
+
+    <div class="body-text">
+        Ground truth heatmaps are constructed from raw gaze recordings by placing Gaussian blobs (σ = 11 pixels) at each recorded gaze coordinate, then summing and normalizing to [0, 1]. Augmentation is applied per sample per epoch, providing effectively unbounded training diversity from a fixed dataset.
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">5. Training Progression — Egocentric Construction Footage</div>
+
+    <div class="body-text">
+        The same masonry production clip processed by the egocentric model at different training stages. All videos play simultaneously from the same starting frame. Intermediate checkpoints (1000, 1500) are omitted because the difference between consecutive epochs is minimal — the model converges rapidly and then plateaus.
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 16px 0 32px;">
+        <div>
+            <div class="video-slot"><video id="iron_raw" src="public/research/iron_raw.mp4" muted loop playsinline></video></div>
+            <div class="video-caption">Raw Input</div>
+        </div>
+        <div>
+            <div class="video-slot"><video id="iron_e500" src="public/research/iron_epoch500.mp4" muted loop playsinline></video></div>
+            <div class="video-caption">Epoch 500</div>
+        </div>
+        <div>
+            <div class="video-slot"><video id="iron_e2000" src="public/research/iron_epoch2000.mp4" muted loop playsinline></video></div>
+            <div class="video-caption">Epoch 2000</div>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">6. Cyclical Patterns in Construction Work</div>
+
+    <div class="body-text">
+        Once the egocentric model is trained, we extract behavioral information from the temporal structure of its predictions. Our central claim: <strong>cyclical patterns exist in the predicted attention data that correspond directly to physical work cycles.</strong> Each block-laying sequence (look at material → look at wall → look at placement → repeat) produces a closed loop in spatial gaze coordinates. These loops are detectable, countable, and their durations are measurable, providing an automated proxy for work output.
+    </div>
+
+    <img src="public/research/graph_cycle_proof.png" class="full-img">
+    <div class="figure-caption">
+        <strong>Figure 1.</strong> Cycle detection on 60 seconds of masonry production. <strong>Top:</strong> distance from the gaze to the worker's dominant attention region over time. The signal oscillates as the worker repeatedly looks away (peaks) and returns (valleys). Each <span style="color:#ef4444">red vertical line marks a cycle border</span> — the precise moment when the gaze is maximally departed from the dominant region, separating one work cycle from the next. Cycles are shaded in alternating colors with their durations labeled. <strong>Bottom:</strong> the discrete state — green when the gaze is at the dominant region (fixation), red when away (saccade) — confirming the cycle borders correspond to clear behavioral transitions.
+    </div>
+
+    <div class="body-text">
+        The structure is undeniable: 9 distinct work cycles in 60 seconds, with consistent borders, alternating between dwelling on the primary work zone and traversing to secondary zones. This is the temporal fingerprint of repetitive manual labor.
+    </div>
+
+    <img src="public/research/graph_gaze_speed.png" class="full-img">
+    <div class="figure-caption">
+        <strong>Figure 2.</strong> The same temporal segment viewed through gaze speed alone. We segment frames into <span style="color:#22c55e">fixations (green, dwelling on a region)</span> and <span style="color:#ef4444">saccades (red, transitioning between regions)</span> using an adaptive speed threshold. Each fixation–saccade–fixation triplet is one work cycle. Cycle durations are labeled at the top.
+    </div>
+
+    <img src="public/research/graph_gaze_position.png" class="full-img">
+    <div class="figure-caption">
+        <strong>Figure 3.</strong> Spatial structure of attention. <strong>Left:</strong> 2D density map showing the gaze concentrates into discrete clusters (Region A and Region B) rather than spreading uniformly. <strong>Right:</strong> Which region the gaze occupies at each moment — 78 separate re-visits to Region B over 90 seconds, with clear gaps in between. The gaze repeatedly leaves and returns, the spatial signature of repetitive task execution.
+    </div>
+
+    <img src="public/research/graph_center_bias.png" class="full-img">
+    <div class="figure-caption">
+        <strong>Figure 4.</strong> Distribution of gaze speed values across all frames, justifying our fixation/saccade segmentation. The histogram is clearly bimodal: a sharp peak near zero (dwelling) and a broad distribution above the threshold (moving). 40% of frames are fixations, 60% are saccades — consistent with the natural rhythm of physical labor.
+    </div>
+
+    <img src="public/research/graph_cycle_histogram.png" class="full-img">
+    <div class="figure-caption">
+        <strong>Figure 5.</strong> Distribution of detected cycle durations. The right-skewed distribution (median 4.3s, mean 5.2s) shows that the typical work cycle clusters around 3–5 seconds, with a long tail of longer cycles representing more complex sub-tasks (material retrieval, alignment correction). The concentration near the median is the signature of a stable, repeated motor pattern.
+    </div>
+
+    <div class="detail-grid" style="margin-top:32px">
+        <div class="detail-card">
+            <h4>Cycles Detected</h4>
+            <div class="val blue">16</div>
+            <p>In 90 seconds of masonry production. Extrapolated: ~640 cycles per hour.</p>
+        </div>
+        <div class="detail-card">
+            <h4>Mean Cycle Duration</h4>
+            <div class="val">5.2s</div>
+            <p>Median 4.3s. Each cycle approximates one block-placement subtask.</p>
+        </div>
+        <div class="detail-card">
+            <h4>Mean Gaze Speed</h4>
+            <div class="val">0.204</div>
+            <p>Active scanning. Idle workers average 0.30+ in steady forward gaze.</p>
+        </div>
+        <div class="detail-card">
+            <h4>Mean Center Bias</h4>
+            <div class="val">31%</div>
+            <p>Low center bias confirms active workspace scanning. Idle workers: 68–73%.</p>
+        </div>
+    </div>
+
+    <div class="body-text" style="margin-top:24px">
+        Cycle count approximates work output. Cycle duration measures pace. Center bias tracks engagement. Gaze speed classifies activity type. All derived from a single neural network processing helmet camera footage, with no task-specific training, no object detection, and no manual labeling.
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">7. Broader Implications — Visual Design</div>
+
+    <div class="body-text">
+        After validating the construction use case, we recognized that the underlying capability — predicting where humans look on arbitrary visual input — generalizes far beyond physical workspaces. The same UNet architecture that learns "where does a mason focus during block placement" can learn "where does a user focus on a webpage."
+    </div>
+
+    <div class="body-text">
+        Visual design is the natural application. Traditional eye-tracking studies require recruiting participants, calibrating hardware, and analyzing results over weeks. A designer who wants to know whether their call-to-action button captures attention before users disengage currently has no fast feedback loop. Our model provides one: given any screenshot, it predicts the attention heatmap in seconds.
+    </div>
+
+    <div class="body-text">
+        We trained a separate instance of the same architecture on 155 webpages with eye-tracking annotations. The model learned to identify the visual elements humans attend to first: large headlines, faces, navigation, calls-to-action. It transfers across designs — sites it has never seen produce plausible attention predictions that match what designers would expect.
+    </div>
+
+    <div class="section-label">8. Training Progression — Webpage Saliency</div>
+
+    <div class="body-text">
+        The same model architecture trained on a different dataset (155 popular website screenshots). At epoch 500, the model has learned basic spatial structure but the heatmap is broad. By epoch 1500, it sharply identifies headlines, navigation, and interactive elements. Epoch 3000 shows minimal further improvement.
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0 32px;">
+        <div>
+            <img src="public/research/gaze_raw.png" style="width:100%">
+            <div class="video-caption">Original</div>
+        </div>
+        <div>
+            <img src="public/research/gaze_epoch500.png" style="width:100%">
+            <div class="video-caption">Epoch 500</div>
+        </div>
+        <div>
+            <img src="public/research/gaze_epoch1500.png" style="width:100%">
+            <div class="video-caption">Epoch 1500</div>
+        </div>
+        <div>
+            <img src="public/research/gaze_epoch3000.png" style="width:100%">
+            <div class="video-caption">Epoch 3000</div>
+        </div>
+    </div>
+
+    <div class="body-text">
+        <strong>Why does the heatmap converge so quickly?</strong> The encoder already knows how to recognize text, edges, faces, and visual structure from ImageNet pretraining. The decoder only needs to learn a simpler mapping: which recognized features humans attend to. The model isn't learning what text looks like — it already knows. It's learning that text is something people pay attention to.
+    </div>
+
+    <div class="body-text">
+        <strong>Why does improvement plateau?</strong> Two factors. With only 155 unique images even with augmentation, the model exhausts the learnable signal. And our entropy regularization intentionally limits how concentrated the heatmap can become — without it, the model would continue sharpening predictions into narrower peaks (achieving lower loss), but producing less useful heatmaps. The regularization creates a deliberate floor on the loss.
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">9. Cross-Domain Capability</div>
+
+    <div class="body-text">
+        The same architecture, the same training procedure, the same loss function — applied to two fundamentally different visual domains (egocentric construction video and static webpage screenshots) — produces useful attention predictions in both. This suggests that "where humans look" follows learnable principles that are not specific to any single domain. The neural network has internalized a general prior about human visual attention, transferable across tasks.
+    </div>
+
+    <div class="body-text">
+        For construction, the temporal evolution of these predictions reveals work cycles, productivity, and engagement. For design, the spatial distribution of these predictions reveals which elements capture attention and which are ignored. The underlying capability is the same: <em>predict the human attention response to a visual stimulus.</em>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">10. Demo</div>
+
+    <div class="body-text">
+        Raw helmet camera footage (left) vs. the same footage with the final model's predicted attention heatmap overlaid (right).
+    </div>
+
+    <div class="video-row">
+        <div>
+            <div class="video-slot"><video src="public/videos/01_production_masonry_raw.mp4" muted loop playsinline></video></div>
+            <div class="video-caption">Raw — Masonry Production (CAM 01)</div>
+        </div>
+        <div>
+            <div class="video-slot"><video src="public/videos/01_production_masonry_heatmap.mp4" muted loop playsinline></video></div>
+            <div class="video-caption">Predicted Attention Heatmap</div>
+        </div>
+    </div>
+
+    <div class="video-row">
+        <div>
+            <div class="video-slot"><video src="public/videos/05_production_mp_raw.mp4" muted loop playsinline></video></div>
+            <div class="video-caption">Raw — Mechanical/Plumbing (CAM 05)</div>
+        </div>
+        <div>
+            <div class="video-slot"><video src="public/videos/05_production_mp_heatmap.mp4" muted loop playsinline></video></div>
+            <div class="video-caption">Predicted Attention Heatmap</div>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+</div>
+
+<script>
+function updateClock() {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-US',{hour12:false}) + '  ' + new Date().toLocaleDateString('en-US');
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.play(); });
+}, { threshold: 0.3 });
+
+document.querySelectorAll('video').forEach(v => {
+    observer.observe(v);
+    v.addEventListener('play', () => {
+        const grid = v.closest('[style*="grid"]');
+        if (grid) {
+            const siblings = grid.querySelectorAll('video');
+            siblings.forEach(s => {
+                if (s !== v && Math.abs(s.currentTime - v.currentTime) > 0.5) {
+                    s.currentTime = v.currentTime;
+                    s.play();
+                }
+            });
+        }
+    });
+});
+</script>
+</body>
+</html>
